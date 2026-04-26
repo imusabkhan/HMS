@@ -1,10 +1,9 @@
 "use client";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, BedDouble, Users, CreditCard, Receipt,
-  ChefHat, UtensilsCrossed, FileText, Settings, X, Shield,
+  ChefHat, UtensilsCrossed, FileText, Settings, X, Shield, Home,
   MessageSquareWarning, Megaphone, BarChart3, UserCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -87,16 +86,15 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         )}
       >
         {/* Logo */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-sidebar-border">
-          <Link href="/dashboard" className="flex items-center gap-2 group" onClick={onClose}>
-            <Image
-              src="/logo.png"
-              alt="Hostel Management System"
-              width={140}
-              height={60}
-              className="object-contain h-12 w-auto"
-              priority
-            />
+        <div className="flex items-center justify-between px-5 py-5 border-b border-sidebar-border">
+          <Link href="/dashboard" className="flex items-center gap-3 group" onClick={onClose}>
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-amber/10 border border-amber/20 transition-all group-hover:bg-amber/15">
+              <Home className="w-4.5 h-4.5 text-amber" />
+            </div>
+            <div>
+              <p className="text-foreground font-bold text-sm tracking-tight leading-none">HMS</p>
+              <p className="text-muted-foreground text-xs mt-0.5">Management</p>
+            </div>
           </Link>
           <button
             onClick={onClose}
