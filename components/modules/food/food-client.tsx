@@ -16,10 +16,10 @@ import type { FoodItem, MealType } from "@/types";
 
 const mealTypes: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
 const mealColors: Record<MealType, string> = {
-  breakfast: "bg-yellow-50 text-yellow-700 border-yellow-200",
-  lunch: "bg-green-50 text-green-700 border-green-200",
-  dinner: "bg-blue-50 text-blue-700 border-blue-200",
-  snack: "bg-purple-50 text-purple-700 border-purple-200",
+  breakfast: "bg-amber/10 text-amber border-amber/20",
+  lunch: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  dinner: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  snack: "bg-purple-500/10 text-purple-400 border-purple-500/20",
 };
 const mealIcons: Record<MealType, string> = { breakfast: "☀️", lunch: "🌤️", dinner: "🌙", snack: "🍎" };
 
@@ -85,7 +85,7 @@ export function FoodClient({ hostelId, initialItems, initialDate }: Props) {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div><h1 className="text-2xl font-bold tracking-tight">Daily Food List</h1><p className="text-muted-foreground text-sm mt-1">Manage daily meal menus</p></div>
+        <div><h1 className="text-3xl font-serif font-normal tracking-tight">Food List</h1><p className="text-muted-foreground text-sm mt-1">Manage daily meal menus</p></div>
         <Button onClick={() => { setEditing(null); setForm({ ...emptyForm, date: selectedDate }); setDialogOpen(true); }} className="gap-2 w-full sm:w-auto"><Plus className="w-4 h-4" /> Add Item</Button>
       </div>
 

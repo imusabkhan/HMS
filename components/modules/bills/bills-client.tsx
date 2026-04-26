@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Plus, FileText, Search, Edit2, Trash2, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,7 +27,6 @@ interface Props { hostelId: string | null; initialBills: Bill[]; }
 
 export function BillsClient({ hostelId, initialBills }: Props) {
   const [bills, setBills] = useState<Bill[]>(initialBills);
-  const [filtered, setFiltered] = useState<Bill[]>(initialBills);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -35,11 +34,11 @@ export function BillsClient({ hostelId, initialBills }: Props) {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
+  const filtered = useMemo(() => {
     let list = bills;
     if (search) list = list.filter((b) => b.title.toLowerCase().includes(search.toLowerCase()) || b.category.includes(search.toLowerCase()));
     if (statusFilter !== "all") list = list.filter((b) => b.status === statusFilter);
-    setFiltered(list);
+    return list;
   }, [search, statusFilter, bills]);
 
   async function reload() {
@@ -75,24 +74,24 @@ export function BillsClient({ hostelId, initialBills }: Props) {
     else { toast({ title: "Deleted" }); reload(); }
   }
 
-  const totals = {
+  const totals = useMemo(() => ({
     unpaid: bills.filter((b) => b.status !== "paid").reduce((s, b) => s + Number(b.amount), 0),
     paid: bills.filter((b) => b.status === "paid").reduce((s, b) => s + Number(b.amount), 0),
     overdue: bills.filter((b) => b.status === "overdue").length,
-  };
+  }), [bills]);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div><h1 className="text-2xl font-bold tracking-tight">Bills</h1><p className="text-muted-foreground text-sm mt-1">Track utility and other bills</p></div>
+        <div><h1 className="text-3xl font-serif font-normal tracking-tight">Bills</h1><p className="text-muted-foreground text-sm mt-1">Track utility and other bills</p></div>
         <Button onClick={() => { setEditing(null); setForm(emptyForm); setDialogOpen(true); }} className="gap-2 w-full sm:w-auto"><Plus className="w-4 h-4" /> Add Bill</Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { label: "Pending Amount", value: formatCurrency(totals.unpaid), icon: Clock, color: "text-yellow-600", bg: "bg-yellow-50" },
-          { label: "Paid This Period", value: formatCurrency(totals.paid), icon: CheckCircle2, color: "text-green-600", bg: "bg-green-50" },
-          { label: "Overdue Bills", value: totals.overdue, icon: AlertTriangle, color: "text-red-600", bg: "bg-red-50" },
+          { label: "Pending Amount", value: formatCurrency(totals.unpaid), icon: Clock, color: "text-amber", bg: "bg-amber/10 border border-amber/20" },
+          { label: "Paid This Period", value: formatCurrency(totals.paid), icon: CheckCircle2, color: "text-emerald-400", bg: "bg-emerald-500/10 border border-emerald-500/20" },
+          { label: "Overdue Bills", value: totals.overdue, icon: AlertTriangle, color: "text-rose-400", bg: "bg-rose-500/10 border border-rose-500/20" },
         ].map(({ label, value, icon: Icon, color, bg }) => (
           <Card key={label}><CardContent className="p-4 flex items-center gap-3"><div className={`p-2 rounded-lg ${bg}`}><Icon className={`w-4 h-4 ${color}`} /></div><div><p className="text-xs text-muted-foreground">{label}</p><p className="text-xl font-bold">{value}</p></div></CardContent></Card>
         ))}
@@ -120,7 +119,7 @@ export function BillsClient({ hostelId, initialBills }: Props) {
                     </div>
                     <div className="text-right shrink-0"><p className="font-bold text-sm">{formatCurrency(bill.amount)}</p></div>
                     <div className="flex items-center gap-1 shrink-0">
-                      {bill.status !== "paid" && <Button variant="outline" size="sm" className="h-8 text-xs gap-1 text-green-600 hover:text-green-700 border-green-200" onClick={() => markPaid(bill)}><CheckCircle2 className="w-3 h-3" /> Pay</Button>}
+                      {bill.status !== "paid" && <Button variant="ghost" size="sm" className="h-8 text-xs gap-1 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 border border-emerald-500/20" onClick={() => markPaid(bill)}><CheckCircle2 className="w-3 h-3" /> Pay</Button>}
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditing(bill); setForm({ title: bill.title, category: bill.category, amount: bill.amount.toString(), due_date: bill.due_date, paid_date: bill.paid_date ?? "", status: bill.status, notes: bill.notes ?? "" }); setDialogOpen(true); }}><Edit2 className="w-3.5 h-3.5" /></Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(bill.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
                     </div>

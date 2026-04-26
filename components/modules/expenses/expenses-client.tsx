@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Plus, Receipt, Search, Edit2, Trash2, TrendingDown, Filter } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,9 +20,11 @@ const emptyForm = { title: "", amount: "", category: "other" as ExpenseCategory,
 
 interface Props { hostelId: string | null; initialExpenses: Expense[]; defaultMonth: string; }
 
+// Module-level cache — persists across month switches within the session
+const expenseCache = new Map<string, Expense[]>();
+
 export function ExpensesClient({ hostelId, initialExpenses, defaultMonth }: Props) {
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
-  const [filtered, setFiltered] = useState<Expense[]>(initialExpenses);
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
   const [monthFilter, setMonthFilter] = useState(defaultMonth);
@@ -32,15 +34,20 @@ export function ExpensesClient({ hostelId, initialExpenses, defaultMonth }: Prop
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
+  const filtered = useMemo(() => {
     let list = expenses;
     if (search) list = list.filter((e) => e.title.toLowerCase().includes(search.toLowerCase()));
     if (filterCat !== "all") list = list.filter((e) => e.category === filterCat);
-    setFiltered(list);
+    return list;
   }, [search, filterCat, expenses]);
 
   async function loadMonth(month: string) {
     if (!hostelId) return;
+    const cacheKey = `${hostelId}:${month}`;
+    if (expenseCache.has(cacheKey)) {
+      setExpenses(expenseCache.get(cacheKey)!);
+      return;
+    }
     setLoadingMonth(true);
     const supabase = createClient();
     const [year, m] = month.split("-");
@@ -48,11 +55,20 @@ export function ExpensesClient({ hostelId, initialExpenses, defaultMonth }: Prop
     const end = formatDateInput(new Date(parseInt(year), parseInt(m), 0));
     const { data, error } = await supabase.from("hms_expenses").select("*").eq("hostel_id", hostelId).gte("date", start).lte("date", end).order("date", { ascending: false });
     if (error) toast({ title: "Failed to load", description: error.message, variant: "destructive" });
-    else setExpenses((data as Expense[]) ?? []);
+    else {
+      const rows = (data as Expense[]) ?? [];
+      expenseCache.set(cacheKey, rows);
+      setExpenses(rows);
+    }
     setLoadingMonth(false);
   }
 
-  async function reload() { await loadMonth(monthFilter); }
+  async function reload() {
+    if (!hostelId) return;
+    // Invalidate cache for current month so mutations reflect immediately
+    expenseCache.delete(`${hostelId}:${monthFilter}`);
+    await loadMonth(monthFilter);
+  }
 
   async function handleSave() {
     if (!hostelId || !form.title || !form.amount) return;
@@ -73,20 +89,20 @@ export function ExpensesClient({ hostelId, initialExpenses, defaultMonth }: Prop
     else { toast({ title: "Deleted" }); reload(); }
   }
 
-  const total = filtered.reduce((s, e) => s + Number(e.amount), 0);
+  const total = useMemo(() => filtered.reduce((s, e) => s + Number(e.amount), 0), [filtered]);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div><h1 className="text-2xl font-bold tracking-tight">Expenses</h1><p className="text-muted-foreground text-sm mt-1">Track hostel expenditures</p></div>
+        <div><h1 className="text-3xl font-serif font-normal tracking-tight">Expenses</h1><p className="text-muted-foreground text-sm mt-1">Track hostel expenditures</p></div>
         <Button onClick={() => { setEditing(null); setForm(emptyForm); setDialogOpen(true); }} className="gap-2 w-full sm:w-auto"><Plus className="w-4 h-4" /> Add Expense</Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { label: "Total This Month", value: formatCurrency(total), icon: TrendingDown, color: "text-red-600", bg: "bg-red-50" },
-          { label: "Total Entries", value: filtered.length, icon: Receipt, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "Average", value: filtered.length ? formatCurrency(total / filtered.length) : "—", icon: Filter, color: "text-purple-600", bg: "bg-purple-50" },
+          { label: "Total This Month", value: formatCurrency(total), icon: TrendingDown, color: "text-rose-400", bg: "bg-rose-500/10 border border-rose-500/20" },
+          { label: "Total Entries", value: filtered.length, icon: Receipt, color: "text-blue-400", bg: "bg-blue-500/10 border border-blue-500/20" },
+          { label: "Average", value: filtered.length ? formatCurrency(total / filtered.length) : "—", icon: Filter, color: "text-purple-400", bg: "bg-purple-500/10 border border-purple-500/20" },
         ].map(({ label, value, icon: Icon, color, bg }) => (
           <Card key={label}><CardContent className="p-4 flex items-center gap-3"><div className={`p-2 rounded-lg ${bg}`}><Icon className={`w-4 h-4 ${color}`} /></div><div><p className="text-xs text-muted-foreground">{label}</p><p className="text-xl font-bold">{value}</p></div></CardContent></Card>
         ))}

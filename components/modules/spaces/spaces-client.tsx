@@ -70,16 +70,16 @@ export function SpacesClient({ hostelId, initialRooms }: Props) {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div><h1 className="text-2xl font-bold tracking-tight">Spaces</h1><p className="text-muted-foreground text-sm mt-1">Manage rooms and occupancy</p></div>
+        <div><h1 className="text-3xl font-serif font-normal tracking-tight">Spaces</h1><p className="text-muted-foreground text-sm mt-1">Manage rooms and occupancy</p></div>
         <Button onClick={openAdd} className="gap-2 w-full sm:w-auto"><Plus className="w-4 h-4" /> Add Room</Button>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: "Total Rooms", value: stats.total, icon: BedDouble, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "Available", value: stats.available, icon: BedDouble, color: "text-green-600", bg: "bg-green-50" },
-          { label: "Occupied", value: stats.occupied, icon: Users, color: "text-orange-600", bg: "bg-orange-50" },
-          { label: "Maintenance", value: stats.maintenance, icon: Wrench, color: "text-red-600", bg: "bg-red-50" },
+          { label: "Total Rooms", value: stats.total, icon: BedDouble, color: "text-blue-400", bg: "bg-blue-500/10 border border-blue-500/20" },
+          { label: "Available", value: stats.available, icon: BedDouble, color: "text-emerald-400", bg: "bg-emerald-500/10 border border-emerald-500/20" },
+          { label: "Occupied", value: stats.occupied, icon: Users, color: "text-amber", bg: "bg-amber/10 border border-amber/20" },
+          { label: "Maintenance", value: stats.maintenance, icon: Wrench, color: "text-rose-400", bg: "bg-rose-500/10 border border-rose-500/20" },
         ].map(({ label, value, icon: Icon, color, bg }) => (
           <Card key={label}><CardContent className="p-4 flex items-center gap-3"><div className={`p-2 rounded-lg ${bg}`}><Icon className={`w-4 h-4 ${color}`} /></div><div><p className="text-xs text-muted-foreground">{label}</p><p className="text-xl font-bold">{value}</p></div></CardContent></Card>
         ))}

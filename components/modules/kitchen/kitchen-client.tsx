@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Plus, ChefHat, Search, Edit2, Trash2, TrendingDown, CalendarDays } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,9 +16,10 @@ const emptyForm = { title: "", amount: "", date: formatDateInput(new Date()), no
 
 interface Props { hostelId: string | null; initialItems: KitchenExpense[]; defaultMonth: string; }
 
+const kitchenCache = new Map<string, KitchenExpense[]>();
+
 export function KitchenClient({ hostelId, initialItems, defaultMonth }: Props) {
   const [items, setItems] = useState<KitchenExpense[]>(initialItems);
-  const [filtered, setFiltered] = useState<KitchenExpense[]>(initialItems);
   const [search, setSearch] = useState("");
   const [monthFilter, setMonthFilter] = useState(defaultMonth);
   const [loadingMonth, setLoadingMonth] = useState(false);
@@ -27,13 +28,18 @@ export function KitchenClient({ hostelId, initialItems, defaultMonth }: Props) {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
+  const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    setFiltered(items.filter((i) => i.title.toLowerCase().includes(q)));
+    return items.filter((i) => i.title.toLowerCase().includes(q));
   }, [search, items]);
 
   async function loadMonth(month: string) {
     if (!hostelId) return;
+    const cacheKey = `${hostelId}:${month}`;
+    if (kitchenCache.has(cacheKey)) {
+      setItems(kitchenCache.get(cacheKey)!);
+      return;
+    }
     setLoadingMonth(true);
     const supabase = createClient();
     const [year, m] = month.split("-");
@@ -41,11 +47,19 @@ export function KitchenClient({ hostelId, initialItems, defaultMonth }: Props) {
     const end = formatDateInput(new Date(parseInt(year), parseInt(m), 0));
     const { data, error } = await supabase.from("hms_kitchen_expenses").select("*").eq("hostel_id", hostelId).gte("date", start).lte("date", end).order("date", { ascending: false });
     if (error) toast({ title: "Failed to load", description: error.message, variant: "destructive" });
-    else setItems((data as KitchenExpense[]) ?? []);
+    else {
+      const rows = (data as KitchenExpense[]) ?? [];
+      kitchenCache.set(cacheKey, rows);
+      setItems(rows);
+    }
     setLoadingMonth(false);
   }
 
-  async function reload() { await loadMonth(monthFilter); }
+  async function reload() {
+    if (!hostelId) return;
+    kitchenCache.delete(`${hostelId}:${monthFilter}`);
+    await loadMonth(monthFilter);
+  }
 
   async function handleSave() {
     if (!hostelId || !form.title || !form.amount) return;
@@ -66,22 +80,25 @@ export function KitchenClient({ hostelId, initialItems, defaultMonth }: Props) {
     else { toast({ title: "Deleted" }); reload(); }
   }
 
-  const total = filtered.reduce((s, i) => s + Number(i.amount), 0);
-  const dailyAvg = filtered.length ? total / new Set(filtered.map((i) => i.date)).size : 0;
-  const grouped = filtered.reduce<Record<string, KitchenExpense[]>>((acc, item) => { (acc[item.date] = acc[item.date] ?? []).push(item); return acc; }, {});
+  const { total, dailyAvg, grouped } = useMemo(() => {
+    const total = filtered.reduce((s, i) => s + Number(i.amount), 0);
+    const dailyAvg = filtered.length ? total / new Set(filtered.map((i) => i.date)).size : 0;
+    const grouped = filtered.reduce<Record<string, KitchenExpense[]>>((acc, item) => { (acc[item.date] = acc[item.date] ?? []).push(item); return acc; }, {});
+    return { total, dailyAvg, grouped };
+  }, [filtered]);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div><h1 className="text-2xl font-bold tracking-tight">Kitchen</h1><p className="text-muted-foreground text-sm mt-1">Track daily kitchen expenditures</p></div>
+        <div><h1 className="text-3xl font-serif font-normal tracking-tight">Kitchen</h1><p className="text-muted-foreground text-sm mt-1">Track daily kitchen expenditures</p></div>
         <Button onClick={() => { setEditing(null); setForm(emptyForm); setDialogOpen(true); }} className="gap-2 w-full sm:w-auto"><Plus className="w-4 h-4" /> Add Entry</Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { label: "Total This Month", value: formatCurrency(total), icon: TrendingDown, color: "text-amber-600", bg: "bg-amber-50" },
-          { label: "Daily Average", value: formatCurrency(dailyAvg), icon: CalendarDays, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "Total Entries", value: filtered.length, icon: ChefHat, color: "text-green-600", bg: "bg-green-50" },
+          { label: "Total This Month", value: formatCurrency(total), icon: TrendingDown, color: "text-amber", bg: "bg-amber/10 border border-amber/20" },
+          { label: "Daily Average", value: formatCurrency(dailyAvg), icon: CalendarDays, color: "text-blue-400", bg: "bg-blue-500/10 border border-blue-500/20" },
+          { label: "Total Entries", value: filtered.length, icon: ChefHat, color: "text-emerald-400", bg: "bg-emerald-500/10 border border-emerald-500/20" },
         ].map(({ label, value, icon: Icon, color, bg }) => (
           <Card key={label}><CardContent className="p-4 flex items-center gap-3"><div className={`p-2 rounded-lg ${bg}`}><Icon className={`w-4 h-4 ${color}`} /></div><div><p className="text-xs text-muted-foreground">{label}</p><p className="text-xl font-bold">{value}</p></div></CardContent></Card>
         ))}
@@ -103,7 +120,7 @@ export function KitchenClient({ hostelId, initialItems, defaultMonth }: Props) {
               <CardContent className="p-0">
                 <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
                   <span className="text-sm font-semibold">{formatDate(date)}</span>
-                  <span className="text-sm font-bold text-amber-600">{formatCurrency(dayItems.reduce((s, i) => s + Number(i.amount), 0))}</span>
+                  <span className="text-sm font-bold text-amber">{formatCurrency(dayItems.reduce((s, i) => s + Number(i.amount), 0))}</span>
                 </div>
                 <div className="divide-y">
                   {dayItems.map((item) => (
