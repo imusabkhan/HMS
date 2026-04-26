@@ -30,7 +30,7 @@ export interface AdminUser {
   is_admin: boolean;
   created_at: string;
   last_sign_in_at: string | null;
-  hostel: { id: string; name: string; total_capacity: number } | null;
+  hostels: { id: string; name: string; total_capacity: number }[];
 }
 
 export interface Hostel {

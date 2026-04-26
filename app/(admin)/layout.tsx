@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { AdminShell } from "@/components/layout/admin-shell";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -8,7 +9,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   if (!user) redirect("/login");
 
-  // Use service role to avoid RLS recursion bug in is_admin check
   const admin = createAdminClient();
   const { data: profile, error } = await admin
     .from("hms_profiles")
@@ -18,5 +18,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   if (error || !profile?.is_admin) redirect("/dashboard");
 
-  return <>{children}</>;
+  return (
+    <AdminShell email={user.email ?? ""}>
+      {children}
+    </AdminShell>
+  );
 }

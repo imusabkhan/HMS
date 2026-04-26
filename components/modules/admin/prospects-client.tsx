@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition, useMemo, useRef } from "react";
 import {
   Building2, Plus, MapPin, RefreshCw,
-  Edit2, Trash2, Search, LogOut,
+  Edit2, Trash2, Search,
   CheckCircle2, Clock, Eye, Map, ChevronDown, X,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -163,12 +163,6 @@ export default function ProspectsClient() {
     });
   }
 
-  async function handleLogout() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    window.location.href = "/login";
-  }
-
   const uniqueAreas = useMemo(() =>
     Array.from(new Set(prospects.map((p) => p.area?.trim()).filter(Boolean) as string[])).sort(),
   [prospects]);
@@ -219,48 +213,27 @@ export default function ProspectsClient() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b bg-sidebar text-white">
-        <div className="container mx-auto px-4 sm:px-6 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-white/10">
-                <Building2 className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-white">Admin Panel</h1>
-                <p className="text-white/60 text-xs">Hostel Pipeline</p>
-              </div>
+      {/* Page Header */}
+      <div className="border-b border-sidebar-border px-4 sm:px-6 py-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber/10 border border-amber/20">
+              <Building2 className="w-4 h-4 text-amber" />
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-white/80 hover:text-white hover:bg-white/10 gap-2"
-                onClick={load}
-                disabled={loading}
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-                <span className="hidden sm:inline">Refresh</span>
-              </Button>
-              <Button
-                size="sm"
-                className="bg-white text-sidebar hover:bg-white/90 gap-2"
-                onClick={openAdd}
-              >
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">Add Hostel</span>
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-white/80 hover:text-white hover:bg-red-500/20 gap-2"
-                onClick={handleLogout}
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Logout</span>
-              </Button>
+            <div>
+              <h1 className="text-base font-bold">Hostel Pipeline</h1>
+              <p className="text-xs text-muted-foreground">Sales prospects and outreach priority</p>
             </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="gap-2" onClick={load} disabled={loading}>
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </Button>
+            <Button size="sm" className="gap-2" onClick={openAdd}>
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Add Hostel</span>
+            </Button>
           </div>
         </div>
       </div>

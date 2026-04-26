@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { getMonthRange, formatDateInput } from "@/lib/utils";
 import type {
@@ -14,16 +15,26 @@ export const getAuthContext = cache(async () => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const [{ data: profile }, { data: hostel }] = await Promise.all([
+  const cookieStore = await cookies();
+  const activeHostelId = cookieStore.get("hms_active_hostel")?.value;
+
+  const [{ data: profile }, { data: hostelData }] = await Promise.all([
     supabase.from("hms_profiles").select("*").eq("id", user.id).single(),
-    supabase.from("hms_hostels").select("*").eq("owner_id", user.id).single(),
+    supabase.from("hms_hostels").select("*").eq("owner_id", user.id).order("created_at"),
   ]);
+
+  const hostels = (hostelData ?? []) as Hostel[];
+  const hostel =
+    (activeHostelId ? hostels.find((h) => h.id === activeHostelId) : null) ??
+    hostels[0] ??
+    null;
 
   return {
     supabase,
     user,
     profile: profile as Profile | null,
-    hostel: hostel as Hostel | null,
+    hostel,
+    hostels,
     hostelId: (hostel?.id ?? null) as string | null,
   };
 });

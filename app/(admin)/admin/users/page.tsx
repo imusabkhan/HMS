@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useTransition } from "react";
 import {
-  Users, Plus, Mail, Shield, ShieldOff, Trash2,
+  Users, Plus, Shield, ShieldOff, Trash2,
   Edit2, KeyRound, Search, Building2, Clock,
-  CheckCircle2, RefreshCw, Send, Eye, EyeOff, LogOut,
+  CheckCircle2, RefreshCw, Send, Eye, EyeOff,
 } from "lucide-react";
 import {
   listAdminUsers,
@@ -23,7 +23,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 import type { AdminUser } from "@/types";
 
 type DialogMode = "create" | "invite" | "edit" | "reset" | "delete" | null;
@@ -56,7 +55,7 @@ export default function AdminUsersPage() {
         (u) =>
           u.email.toLowerCase().includes(q) ||
           (u.full_name ?? "").toLowerCase().includes(q) ||
-          (u.hostel?.name ?? "").toLowerCase().includes(q)
+          u.hostels.some((h) => h.name.toLowerCase().includes(q))
       )
     );
   }, [search, users]);
@@ -170,12 +169,6 @@ export default function AdminUsersPage() {
     });
   }
 
-  async function handleLogout() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    window.location.href = "/login";
-  }
-
   const stats = {
     total: users.length,
     admins: users.filter((u) => u.is_admin).length,
@@ -184,57 +177,31 @@ export default function AdminUsersPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Admin Header */}
-      <div className="border-b bg-sidebar text-white">
-        <div className="container mx-auto px-4 sm:px-6 py-4 max-w-7xl">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-white/10">
-                <Shield className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-white">Admin Panel</h1>
-                <p className="text-white/60 text-xs">User Management</p>
-              </div>
+      {/* Page Header */}
+      <div className="border-b border-sidebar-border px-4 sm:px-6 py-4">
+        <div className="flex items-center justify-between gap-4 max-w-7xl mx-auto">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber/10 border border-amber/20">
+              <Users className="w-4 h-4 text-amber" />
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-white/80 hover:text-white hover:bg-white/10 gap-2"
-                onClick={loadUsers}
-                disabled={loading}
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-                <span className="hidden sm:inline">Refresh</span>
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="border border-white/30 text-white/80 hover:text-white hover:bg-white/10 gap-2"
-                onClick={openInvite}
-              >
-                <Send className="w-4 h-4" />
-                <span className="hidden sm:inline">Invite</span>
-              </Button>
-              <Button
-                size="sm"
-                className="bg-white text-sidebar hover:bg-white/90 gap-2"
-                onClick={openCreate}
-              >
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">Create User</span>
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-white/80 hover:text-white hover:bg-red-500/20 gap-2"
-                onClick={handleLogout}
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Logout</span>
-              </Button>
+            <div>
+              <h1 className="text-base font-bold">User Management</h1>
+              <p className="text-xs text-muted-foreground">Manage hostel owner accounts</p>
             </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="gap-2" onClick={loadUsers} disabled={loading}>
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </Button>
+            <Button size="sm" variant="outline" className="gap-2" onClick={openInvite}>
+              <Send className="w-4 h-4" />
+              <span className="hidden sm:inline">Invite</span>
+            </Button>
+            <Button size="sm" className="gap-2" onClick={openCreate}>
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Create User</span>
+            </Button>
           </div>
         </div>
       </div>
@@ -279,7 +246,7 @@ export default function AdminUsersPage() {
               Hostel Owners ({filtered.length})
             </CardTitle>
             <CardDescription>
-              All registered users. Each user manages their own isolated hostel.
+              All registered users. Manage hostels per user from the Hostels admin page.
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
@@ -331,12 +298,16 @@ export default function AdminUsersPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3 hidden sm:table-cell">
-                          {user.hostel ? (
+                          {user.hostels.length > 0 ? (
                             <div className="flex items-center gap-1.5">
                               <Building2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                               <div className="min-w-0">
-                                <p className="text-sm truncate">{user.hostel.name}</p>
-                                <p className="text-xs text-muted-foreground">{user.hostel.total_capacity} cap.</p>
+                                <p className="text-sm truncate">{user.hostels[0].name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {user.hostels.length > 1
+                                    ? `+${user.hostels.length - 1} more propert${user.hostels.length - 1 > 1 ? "ies" : "y"}`
+                                    : `${user.hostels[0].total_capacity} capacity`}
+                                </p>
                               </div>
                             </div>
                           ) : (

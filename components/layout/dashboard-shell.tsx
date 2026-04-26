@@ -6,7 +6,7 @@ import { useHostelContext } from "@/contexts/hostel-context";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { profile, hostel } = useHostelContext();
+  const { profile, hostel, hostels, setActiveHostel } = useHostelContext();
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -16,6 +16,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           onMenuClick={() => setSidebarOpen(true)}
           profile={profile}
           hostel={hostel}
+          hostels={hostels}
+          setActiveHostel={setActiveHostel}
         />
         <main className="flex-1 overflow-y-auto">
           <div className="container mx-auto px-4 sm:px-6 py-6 max-w-7xl">

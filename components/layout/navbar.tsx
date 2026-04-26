@@ -1,21 +1,32 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Menu, LogOut, ChevronDown, Home } from "lucide-react";
+import Link from "next/link";
+import { Menu, LogOut, ChevronDown, Home, Building2, Check, Shield, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import type { Profile, Hostel } from "@/types";
+
+const ADMIN_LINKS = [
+  { href: "/admin/users",     label: "User Management",  icon: Users },
+  { href: "/admin/hostels",   label: "Hostels",          icon: Building2 },
+  { href: "/admin/prospects", label: "Hostel Pipeline",  icon: Home },
+];
 
 interface NavbarProps {
   onMenuClick: () => void;
   profile: Profile | null;
   hostel: Hostel | null;
+  hostels: Hostel[];
+  setActiveHostel: (id: string) => void;
 }
 
-export function Navbar({ onMenuClick, profile, hostel }: NavbarProps) {
+export function Navbar({ onMenuClick, profile, hostel, hostels, setActiveHostel }: NavbarProps) {
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
   const [dropOpen, setDropOpen] = useState(false);
+  const [hostelDrop, setHostelDrop] = useState(false);
+  const [adminDrop, setAdminDrop] = useState(false);
 
   const initials = (profile?.full_name ?? profile?.email ?? "U")
     .split(" ")
@@ -23,6 +34,8 @@ export function Navbar({ onMenuClick, profile, hostel }: NavbarProps) {
     .join("")
     .toUpperCase()
     .slice(0, 2);
+
+  const multiHostel = hostels.length > 1;
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -42,17 +55,122 @@ export function Navbar({ onMenuClick, profile, hostel }: NavbarProps) {
         <Menu className="w-5 h-5" />
       </button>
 
-      {/* Hostel name pill */}
-      <div className="flex items-center gap-2 min-w-0">
+      {/* Hostel name / switcher */}
+      <div className="flex items-center gap-2 min-w-0 relative">
         <div className="flex items-center justify-center w-6 h-6 rounded-md bg-amber/10 border border-amber/20 shrink-0">
-          <Home className="w-3.5 h-3.5 text-amber" />
+          {multiHostel ? (
+            <Building2 className="w-3.5 h-3.5 text-amber" />
+          ) : (
+            <Home className="w-3.5 h-3.5 text-amber" />
+          )}
         </div>
-        <span className="font-semibold text-sm truncate text-foreground">
-          {hostel?.name ?? "My Hostel"}
-        </span>
+
+        {multiHostel ? (
+          <>
+            <button
+              onClick={() => setHostelDrop((p) => !p)}
+              className="flex items-center gap-1.5 font-semibold text-sm text-foreground hover:text-amber transition-colors"
+            >
+              <span className="truncate max-w-[140px]">{hostel?.name ?? "My Hostel"}</span>
+              <ChevronDown
+                className={cn(
+                  "w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 shrink-0",
+                  hostelDrop && "rotate-180"
+                )}
+              />
+            </button>
+
+            {hostelDrop && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setHostelDrop(false)} />
+                <div className="absolute left-0 top-full mt-2 w-56 z-20 rounded-xl border border-sidebar-border bg-sidebar shadow-2xl overflow-hidden animate-fade-up">
+                  <div className="px-3 py-2.5 border-b border-sidebar-border">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Switch Property
+                    </p>
+                  </div>
+                  <div className="p-1">
+                    {hostels.map((h) => (
+                      <button
+                        key={h.id}
+                        onClick={() => {
+                          setActiveHostel(h.id);
+                          setHostelDrop(false);
+                        }}
+                        className={cn(
+                          "w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm transition-colors text-left",
+                          h.id === hostel?.id
+                            ? "bg-amber/10 text-amber"
+                            : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                        )}
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{h.name}</p>
+                          {h.total_capacity > 0 && (
+                            <p className="text-xs opacity-60">{h.total_capacity} capacity</p>
+                          )}
+                        </div>
+                        {h.id === hostel?.id && <Check className="w-3.5 h-3.5 shrink-0" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </>
+        ) : (
+          <span className="font-semibold text-sm truncate text-foreground">
+            {hostel?.name ?? "My Hostel"}
+          </span>
+        )}
       </div>
 
-      <div className="ml-auto flex items-center gap-2 relative">
+      {/* Admin quick-access — only visible to admins */}
+      {profile?.is_admin && (
+        <div className="relative ml-auto">
+          <button
+            onClick={() => setAdminDrop((p) => !p)}
+            className={cn(
+              "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border",
+              adminDrop
+                ? "bg-amber/10 text-amber border-amber/30"
+                : "text-muted-foreground border-sidebar-border hover:text-amber hover:bg-amber/5 hover:border-amber/20"
+            )}
+            title="Admin Panel"
+          >
+            <Shield className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Admin</span>
+          </button>
+
+          {adminDrop && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setAdminDrop(false)} />
+              <div className="absolute right-0 top-full mt-2 w-52 z-20 rounded-xl border border-sidebar-border bg-sidebar shadow-2xl overflow-hidden animate-fade-up">
+                <div className="px-3 py-2.5 border-b border-sidebar-border">
+                  <p className="text-xs font-semibold text-amber uppercase tracking-wide flex items-center gap-1.5">
+                    <Shield className="w-3 h-3" /> Admin Panel
+                  </p>
+                </div>
+                <div className="p-1">
+                  {ADMIN_LINKS.map(({ href, label, icon: Icon }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      onClick={() => setAdminDrop(false)}
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+                    >
+                      <Icon className="w-4 h-4 shrink-0" />
+                      {label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 relative">
         {/* Avatar + dropdown */}
         <button
           onClick={() => setDropOpen((p) => !p)}
@@ -64,10 +182,14 @@ export function Navbar({ onMenuClick, profile, hostel }: NavbarProps) {
           <span className="hidden sm:block text-sm text-muted-foreground group-hover:text-foreground transition-colors truncate max-w-[120px]">
             {profile?.full_name ?? profile?.email ?? "Owner"}
           </span>
-          <ChevronDown className={cn("w-3.5 h-3.5 text-muted-foreground transition-transform duration-200", dropOpen && "rotate-180")} />
+          <ChevronDown
+            className={cn(
+              "w-3.5 h-3.5 text-muted-foreground transition-transform duration-200",
+              dropOpen && "rotate-180"
+            )}
+          />
         </button>
 
-        {/* Dropdown */}
         {dropOpen && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setDropOpen(false)} />

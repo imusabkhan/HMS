@@ -119,10 +119,14 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
           {isAdmin && (
             <div>
-              <p className="text-xs font-semibold text-muted-foreground/50 uppercase tracking-widest px-3 mb-1.5">Admin</p>
-              <div className="space-y-0.5">
-                <NavLink href="/admin/users"      label="User Management"  icon={Shield} />
-                <NavLink href="/admin/prospects"  label="Hostel Pipeline"  icon={Building2} />
+              <div className="flex items-center gap-1.5 px-3 mb-1.5">
+                <Shield className="w-3 h-3 text-amber/70" />
+                <p className="text-xs font-semibold text-amber/70 uppercase tracking-widest">Admin</p>
+              </div>
+              <div className="space-y-0.5 rounded-lg border border-amber/10 bg-amber/[0.03] p-1">
+                <NavLink href="/admin/users"     label="User Management"  icon={Shield} />
+                <NavLink href="/admin/hostels"   label="Hostels"          icon={Building2} />
+                <NavLink href="/admin/prospects" label="Hostel Pipeline"  icon={Home} />
               </div>
             </div>
           )}

@@ -46,13 +46,15 @@ export async function listAdminUsers(): Promise<{ users?: AdminUser[]; error?: s
     const profileMap = new Map(
       (profilesRes.data ?? []).map((p) => [p.id, p])
     );
-    const hostelMap = new Map(
-      (hostelsRes.data ?? []).map((h) => [h.owner_id, h])
-    );
+
+    const hostelsByOwner = new Map<string, { id: string; name: string; total_capacity: number }[]>();
+    for (const h of (hostelsRes.data ?? [])) {
+      if (!hostelsByOwner.has(h.owner_id)) hostelsByOwner.set(h.owner_id, []);
+      hostelsByOwner.get(h.owner_id)!.push({ id: h.id, name: h.name, total_capacity: h.total_capacity });
+    }
 
     const users: AdminUser[] = authRes.data.users.map((u) => {
       const profile = profileMap.get(u.id);
-      const hostel = hostelMap.get(u.id);
       return {
         id: u.id,
         email: u.email ?? "",
@@ -60,9 +62,7 @@ export async function listAdminUsers(): Promise<{ users?: AdminUser[]; error?: s
         is_admin: profile?.is_admin ?? false,
         created_at: u.created_at,
         last_sign_in_at: u.last_sign_in_at ?? null,
-        hostel: hostel
-          ? { id: hostel.id, name: hostel.name, total_capacity: hostel.total_capacity }
-          : null,
+        hostels: hostelsByOwner.get(u.id) ?? [],
       };
     });
 
