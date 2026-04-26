@@ -400,6 +400,11 @@ export function TenantsClient({ hostelId, active: initialActive, waiting: initia
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5"><Label>Monthly Rent (PKR){!form.is_waiting && " *"}</Label><Input type="number" placeholder="0" value={form.monthly_rent} onChange={(e) => setForm({ ...form, monthly_rent: e.target.value })} /></div>
+              <div className="space-y-1.5"><Label>Security Deposit (PKR)</Label><Input type="number" placeholder="0" value={form.security_deposit} onChange={(e) => setForm({ ...form, security_deposit: e.target.value })} /></div>
+            </div>
+
             {!form.is_waiting && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5"><Label>Room</Label>
@@ -421,11 +426,6 @@ export function TenantsClient({ hostelId, active: initialActive, waiting: initia
                 <div className="space-y-1.5"><Label>Check-in Date *</Label><Input type="date" value={form.check_in} onChange={(e) => setForm({ ...form, check_in: e.target.value })} /></div>
               </div>
             )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5"><Label>Monthly Rent (PKR){!form.is_waiting && " *"}</Label><Input type="number" placeholder="0" value={form.monthly_rent} onChange={(e) => setForm({ ...form, monthly_rent: e.target.value })} /></div>
-              <div className="space-y-1.5"><Label>Security Deposit (PKR)</Label><Input type="number" placeholder="0" value={form.security_deposit} onChange={(e) => setForm({ ...form, security_deposit: e.target.value })} /></div>
-            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5"><Label>Emergency Contact</Label><Input placeholder="Name" value={form.emergency_contact} onChange={(e) => setForm({ ...form, emergency_contact: e.target.value })} /></div>
