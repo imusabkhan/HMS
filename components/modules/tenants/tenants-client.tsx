@@ -29,7 +29,8 @@ const emptyForm = {
   type: "general" as SpaceType,
   room_id: "", bed_number: "",
   check_in: formatDateInput(new Date()),
-  monthly_rent: "", security_deposit: "0",
+  billing_type: "monthly" as "monthly" | "daily",
+  monthly_rent: "", daily_rate: "", security_deposit: "0",
   emergency_contact: "", emergency_phone: "", notes: "",
   is_waiting: false,
 };
@@ -86,7 +87,9 @@ export function TenantsClient({ hostelId, active: initialActive, waiting: initia
       room_id: t.room_id ?? "",
       bed_number: t.bed_number ?? "",
       check_in: t.check_in,
+      billing_type: t.billing_type ?? "monthly",
       monthly_rent: t.monthly_rent.toString(),
+      daily_rate: t.daily_rate?.toString() ?? "0",
       security_deposit: t.security_deposit?.toString() ?? "0",
       emergency_contact: t.emergency_contact ?? "",
       emergency_phone: t.emergency_phone ?? "",
@@ -112,7 +115,9 @@ export function TenantsClient({ hostelId, active: initialActive, waiting: initia
       room_id: form.is_waiting || !form.room_id ? null : form.room_id,
       bed_number: form.bed_number || null,
       check_in: form.is_waiting ? formatDateInput(new Date()) : form.check_in,
-      monthly_rent: parseFloat(form.monthly_rent) || 0,
+      billing_type: form.billing_type,
+      monthly_rent: form.billing_type === "monthly" ? parseFloat(form.monthly_rent) || 0 : 0,
+      daily_rate: form.billing_type === "daily" ? parseFloat(form.daily_rate) || 0 : 0,
       security_deposit: parseFloat(form.security_deposit) || 0,
       emergency_contact: form.emergency_contact || null,
       emergency_phone: form.emergency_phone || null,
@@ -240,6 +245,7 @@ export function TenantsClient({ hostelId, active: initialActive, waiting: initia
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-medium text-foreground">{t.full_name}</p>
             <Badge variant="secondary" className="text-xs capitalize">{t.type}</Badge>
+            {t.billing_type === "daily" && <Badge variant="warning" className="text-xs">Daily</Badge>}
           </div>
           <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
             {room && <span className="text-xs text-muted-foreground">Room {room.room_number}{t.bed_number ? ` · Bed ${t.bed_number}` : ""}</span>}
@@ -249,7 +255,10 @@ export function TenantsClient({ hostelId, active: initialActive, waiting: initia
           </div>
         </div>
         <div className="text-right shrink-0 hidden sm:block">
-          <p className="text-sm font-semibold text-foreground">{formatCurrency(t.monthly_rent)}<span className="text-xs text-muted-foreground font-normal">/mo</span></p>
+          {t.billing_type === "daily"
+            ? <p className="text-sm font-semibold text-foreground">{formatCurrency(t.daily_rate)}<span className="text-xs text-muted-foreground font-normal">/day</span></p>
+            : <p className="text-sm font-semibold text-foreground">{formatCurrency(t.monthly_rent)}<span className="text-xs text-muted-foreground font-normal">/mo</span></p>
+          }
           {t.security_deposit > 0 && <p className="text-xs text-muted-foreground">Dep: {formatCurrency(t.security_deposit)}</p>}
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -400,8 +409,25 @@ export function TenantsClient({ hostelId, active: initialActive, waiting: initia
               </div>
             </div>
 
+            {/* Billing type toggle */}
+            <div className="flex gap-2">
+              <button type="button"
+                onClick={() => setForm({ ...form, billing_type: "monthly" })}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${form.billing_type === "monthly" ? "bg-amber/10 border-amber/30 text-amber" : "border-sidebar-border text-muted-foreground hover:text-foreground"}`}>
+                Monthly
+              </button>
+              <button type="button"
+                onClick={() => setForm({ ...form, billing_type: "daily" })}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${form.billing_type === "daily" ? "bg-amber/10 border-amber/30 text-amber" : "border-sidebar-border text-muted-foreground hover:text-foreground"}`}>
+                Daily
+              </button>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5"><Label>Monthly Rent (PKR){!form.is_waiting && " *"}</Label><Input type="number" placeholder="0" value={form.monthly_rent} onChange={(e) => setForm({ ...form, monthly_rent: e.target.value })} /></div>
+              {form.billing_type === "monthly"
+                ? <div className="space-y-1.5"><Label>Monthly Rent (PKR)</Label><Input type="number" placeholder="0" value={form.monthly_rent} onChange={(e) => setForm({ ...form, monthly_rent: e.target.value })} /></div>
+                : <div className="space-y-1.5"><Label>Daily Rate (PKR)</Label><Input type="number" placeholder="0" value={form.daily_rate} onChange={(e) => setForm({ ...form, daily_rate: e.target.value })} /></div>
+              }
               <div className="space-y-1.5"><Label>Security Deposit (PKR)</Label><Input type="number" placeholder="0" value={form.security_deposit} onChange={(e) => setForm({ ...form, security_deposit: e.target.value })} /></div>
             </div>
 

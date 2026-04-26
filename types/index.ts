@@ -66,7 +66,9 @@ export interface Tenant {
   type: SpaceType;
   check_in: string;
   check_out: string | null;
+  billing_type: "monthly" | "daily";
   monthly_rent: number;
+  daily_rate: number;
   security_deposit: number;
   is_active: boolean;
   is_waiting: boolean;

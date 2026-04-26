@@ -16,7 +16,30 @@ import { toast } from "@/hooks/use-toast";
 import { formatCurrency, formatDate, formatDateInput } from "@/lib/utils";
 import type { Payment, PaymentMethod, PaymentStatus, Tenant, Room } from "@/types";
 
-interface TenantRow { id: string; full_name: string; monthly_rent: number; room_id: string | null; is_active: boolean; }
+interface TenantRow {
+  id: string;
+  full_name: string;
+  billing_type: "monthly" | "daily";
+  monthly_rent: number;
+  daily_rate: number;
+  check_in: string;
+  check_out: string | null;
+  room_id: string | null;
+  is_active: boolean;
+}
+
+function calcTenantAmount(t: TenantRow, month: string): number {
+  if (t.billing_type !== "daily") return t.monthly_rent;
+  const [y, m] = month.split("-").map(Number);
+  const monthStart = new Date(y, m - 1, 1);
+  const monthEnd = new Date(y, m, 0);
+  const checkIn = new Date(t.check_in);
+  const checkOut = t.check_out ? new Date(t.check_out) : null;
+  const start = checkIn > monthStart ? checkIn : monthStart;
+  const end = checkOut && checkOut < monthEnd ? checkOut : monthEnd;
+  const days = Math.max(0, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
+  return days * t.daily_rate;
+}
 interface RoomRow { id: string; room_number: string; floor: number | null; }
 
 interface Props {
@@ -97,7 +120,7 @@ export function PaymentsClient({ hostelId, payments: initialPayments, tenants, r
       hostel_id: hostelId,
       tenant_id: t.id,
       for_month: selectedMonth,
-      amount: t.monthly_rent,
+      amount: calcTenantAmount(t, selectedMonth),
       status: "pending" as PaymentStatus,
     }));
     const { error } = await supabase.from("hms_payments").upsert(rows, { onConflict: "tenant_id,for_month", ignoreDuplicates: true });

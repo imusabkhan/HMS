@@ -126,7 +126,7 @@ export async function getPaymentsData(forMonth: string) {
       .eq("for_month", forMonth)
       .order("created_at", { ascending: false }),
     supabase.from("hms_tenants")
-      .select("id, full_name, monthly_rent, room_id, is_active")
+      .select("id, full_name, billing_type, monthly_rent, daily_rate, check_in, check_out, room_id, is_active")
       .eq("hostel_id", hostelId)
       .eq("is_active", true),
     supabase.from("hms_rooms")
@@ -137,7 +137,7 @@ export async function getPaymentsData(forMonth: string) {
   return {
     hostelId,
     payments: (payments ?? []) as Payment[],
-    tenants: (tenants ?? []) as Pick<Tenant, "id" | "full_name" | "monthly_rent" | "room_id" | "is_active">[],
+    tenants: (tenants ?? []) as Pick<Tenant, "id" | "full_name" | "billing_type" | "monthly_rent" | "daily_rate" | "check_in" | "check_out" | "room_id" | "is_active">[],
     rooms: (rooms ?? []) as Pick<Room, "id" | "room_number" | "floor">[],
   };
 }
