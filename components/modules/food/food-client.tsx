@@ -16,20 +16,18 @@ import { toast } from "@/hooks/use-toast";
 import { formatDate, formatDateInput } from "@/lib/utils";
 import type { FoodItem, MealType } from "@/types";
 
-const mealTypes: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
+const mealTypes: MealType[] = ["breakfast", "lunch", "dinner"];
 const mealColors: Record<MealType, string> = {
   breakfast: "bg-amber/10 text-amber border-amber/20",
   lunch: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
   dinner: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  snack: "bg-purple-500/10 text-purple-400 border-purple-500/20",
 };
 const mealAccent: Record<MealType, string> = {
   breakfast: "text-amber",
   lunch: "text-emerald-400",
   dinner: "text-blue-400",
-  snack: "text-purple-400",
 };
-const mealIcons: Record<MealType, string> = { breakfast: "☀️", lunch: "🌤️", dinner: "🌙", snack: "🍎" };
+const mealIcons: Record<MealType, string> = { breakfast: "☀️", lunch: "🌤️", dinner: "🌙" };
 
 const emptyForm = {
   date: formatDateInput(new Date()),
@@ -261,11 +259,11 @@ export function FoodClient({ hostelId, initialItems, initialDate }: Props) {
   const grouped = mealTypes.reduce<Record<MealType, FoodItem[]>>((acc, m) => {
     acc[m] = items.filter((i) => i.meal_type === m);
     return acc;
-  }, { breakfast: [], lunch: [], dinner: [], snack: [] });
+  }, { breakfast: [], lunch: [], dinner: [] });
 
   const groupedByDate = useMemo(() => {
     return monthItems.reduce<Record<string, Record<MealType, FoodItem[]>>>((acc, item) => {
-      if (!acc[item.date]) acc[item.date] = { breakfast: [], lunch: [], dinner: [], snack: [] };
+      if (!acc[item.date]) acc[item.date] = { breakfast: [], lunch: [], dinner: [] };
       acc[item.date][item.meal_type].push(item);
       return acc;
     }, {});
@@ -378,7 +376,7 @@ export function FoodClient({ hostelId, initialItems, initialDate }: Props) {
           ) : (
             <div className="space-y-2">
               {daysInMonth.map((date) => {
-                const dayData = groupedByDate[date] ?? { breakfast: [], lunch: [], dinner: [], snack: [] };
+                const dayData = groupedByDate[date] ?? { breakfast: [], lunch: [], dinner: [] };
                 const totalItems = mealTypes.reduce((s, m) => s + dayData[m].length, 0);
                 const isToday = date === today;
                 const expanded = expandedDates.has(date);
