@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, BedDouble, Users, CreditCard, Receipt,
   ChefHat, UtensilsCrossed, FileText, Settings, X, Shield, Home,
-  MessageSquareWarning, Megaphone, BarChart3, UserCog,
+  MessageSquareWarning, Megaphone, BarChart3, UserCog, Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsAdmin } from "@/hooks/use-is-admin";
@@ -120,7 +120,10 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           {isAdmin && (
             <div>
               <p className="text-xs font-semibold text-muted-foreground/50 uppercase tracking-widest px-3 mb-1.5">Admin</p>
-              <NavLink href="/admin/users" label="User Management" icon={Shield} />
+              <div className="space-y-0.5">
+                <NavLink href="/admin/users"      label="User Management"  icon={Shield} />
+                <NavLink href="/admin/prospects"  label="Hostel Pipeline"  icon={Building2} />
+              </div>
             </div>
           )}
         </nav>

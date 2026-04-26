@@ -12,6 +12,7 @@ export type ComplaintStatus = "open" | "in_progress" | "resolved";
 export type EmployeeRole = "cook" | "guard" | "cleaner" | "manager" | "driver" | "other";
 export type EmployeeStatus = "active" | "inactive";
 export type SalaryStatus = "pending" | "paid";
+export type ProspectStatus = "pending" | "visited" | "onboarded";
 
 export interface Profile {
   id: string;
@@ -206,6 +207,7 @@ export interface RevenueMonth {
   collected: number;
   due: number;
   expenses: number;
+  kitchen: number;
   salaries: number;
   profit: number;
   collectionRate: number;
@@ -246,4 +248,18 @@ export interface SalaryPayment {
   receipt_number: string | null;
   created_at: string;
   employee?: { full_name: string; role: string };
+}
+
+export interface Prospect {
+  id: string;
+  name: string;
+  owner_name: string | null;
+  phone: string | null;
+  area: string | null;
+  address: string | null;
+  maps_url: string | null;
+  status: ProspectStatus;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
 }

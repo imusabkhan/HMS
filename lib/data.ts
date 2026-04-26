@@ -223,8 +223,8 @@ export async function getReportsData() {
   const { supabase, hostelId } = ctx;
 
   const now = new Date();
-  const ranges = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+  const ranges = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
     const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     return {
       month: d.toLocaleDateString("en-US", { month: "short", year: "2-digit" }),
@@ -268,6 +268,7 @@ export async function getReportsData() {
       collected,
       due,
       expenses: totalExp,
+      kitchen: kit,
       salaries: sal,
       profit: collected - totalExp,
       collectionRate: due > 0 ? Math.round((collected / due) * 100) : 0,
@@ -295,7 +296,7 @@ export async function getReportsData() {
     else { aging.d90plus.count++; aging.d90plus.amount += amt; }
   });
 
-  return { hostelId, revenueByMonth, aging };
+  return { hostelId, revenueByMonth, aging, totalCapacity };
 }
 
 export async function getExpenses(monthFilter: string) {
