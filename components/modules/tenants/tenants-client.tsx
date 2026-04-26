@@ -30,7 +30,7 @@ const emptyForm = {
   room_id: "", bed_number: "",
   check_in: formatDateInput(new Date()),
   billing_type: "monthly" as "monthly" | "daily",
-  monthly_rent: "", daily_rate: "", security_deposit: "0",
+  monthly_rent: "", daily_rate: "", check_out: "", security_deposit: "0",
   emergency_contact: "", emergency_phone: "", notes: "",
   is_waiting: false,
 };
@@ -90,6 +90,7 @@ export function TenantsClient({ hostelId, active: initialActive, waiting: initia
       billing_type: t.billing_type ?? "monthly",
       monthly_rent: t.monthly_rent.toString(),
       daily_rate: t.daily_rate?.toString() ?? "0",
+      check_out: t.check_out ?? "",
       security_deposit: t.security_deposit?.toString() ?? "0",
       emergency_contact: t.emergency_contact ?? "",
       emergency_phone: t.emergency_phone ?? "",
@@ -115,6 +116,7 @@ export function TenantsClient({ hostelId, active: initialActive, waiting: initia
       room_id: form.is_waiting || !form.room_id ? null : form.room_id,
       bed_number: form.bed_number || null,
       check_in: form.is_waiting ? formatDateInput(new Date()) : form.check_in,
+      check_out: form.billing_type === "daily" && form.check_out ? form.check_out : null,
       billing_type: form.billing_type,
       monthly_rent: form.billing_type === "monthly" ? parseFloat(form.monthly_rent) || 0 : 0,
       daily_rate: form.billing_type === "daily" ? parseFloat(form.daily_rate) || 0 : 0,
@@ -423,13 +425,36 @@ export function TenantsClient({ hostelId, active: initialActive, waiting: initia
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              {form.billing_type === "monthly"
-                ? <div className="space-y-1.5"><Label>Monthly Rent (PKR)</Label><Input type="number" placeholder="0" value={form.monthly_rent} onChange={(e) => setForm({ ...form, monthly_rent: e.target.value })} /></div>
-                : <div className="space-y-1.5"><Label>Daily Rate (PKR)</Label><Input type="number" placeholder="0" value={form.daily_rate} onChange={(e) => setForm({ ...form, daily_rate: e.target.value })} /></div>
-              }
-              <div className="space-y-1.5"><Label>Security Deposit (PKR)</Label><Input type="number" placeholder="0" value={form.security_deposit} onChange={(e) => setForm({ ...form, security_deposit: e.target.value })} /></div>
-            </div>
+            {form.billing_type === "monthly" ? (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5"><Label>Monthly Rent (PKR)</Label><Input type="number" placeholder="0" value={form.monthly_rent} onChange={(e) => setForm({ ...form, monthly_rent: e.target.value })} /></div>
+                <div className="space-y-1.5"><Label>Security Deposit (PKR)</Label><Input type="number" placeholder="0" value={form.security_deposit} onChange={(e) => setForm({ ...form, security_deposit: e.target.value })} /></div>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5"><Label>Daily Rate (PKR)</Label><Input type="number" placeholder="0" value={form.daily_rate} onChange={(e) => setForm({ ...form, daily_rate: e.target.value })} /></div>
+                  <div className="space-y-1.5"><Label>Security Deposit (PKR)</Label><Input type="number" placeholder="0" value={form.security_deposit} onChange={(e) => setForm({ ...form, security_deposit: e.target.value })} /></div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5"><Label>Check-in Date *</Label><Input type="date" value={form.check_in} onChange={(e) => setForm({ ...form, check_in: e.target.value })} /></div>
+                  <div className="space-y-1.5"><Label>Expected Check-out *</Label><Input type="date" value={form.check_out} onChange={(e) => setForm({ ...form, check_out: e.target.value })} /></div>
+                </div>
+                {(() => {
+                  const rate = parseFloat(form.daily_rate) || 0;
+                  const days = form.check_in && form.check_out
+                    ? Math.max(0, Math.round((new Date(form.check_out).getTime() - new Date(form.check_in).getTime()) / 86400000) + 1)
+                    : 0;
+                  if (!rate || !days) return null;
+                  return (
+                    <div className="flex items-center justify-between rounded-lg bg-amber/[0.06] border border-amber/20 px-4 py-2.5">
+                      <span className="text-sm text-muted-foreground">{days} day{days !== 1 ? "s" : ""} × {formatCurrency(rate)}/day</span>
+                      <span className="text-sm font-bold text-amber">{formatCurrency(days * rate)}</span>
+                    </div>
+                  );
+                })()}
+              </>
+            )}
 
             {!form.is_waiting && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -449,7 +474,7 @@ export function TenantsClient({ hostelId, active: initialActive, waiting: initia
                   </Select>
                 </div>
                 <div className="space-y-1.5"><Label>Bed Number</Label><Input placeholder="A1" value={form.bed_number} onChange={(e) => setForm({ ...form, bed_number: e.target.value })} /></div>
-                <div className="space-y-1.5"><Label>Check-in Date *</Label><Input type="date" value={form.check_in} onChange={(e) => setForm({ ...form, check_in: e.target.value })} /></div>
+                {form.billing_type === "monthly" && <div className="space-y-1.5"><Label>Check-in Date *</Label><Input type="date" value={form.check_in} onChange={(e) => setForm({ ...form, check_in: e.target.value })} /></div>}
               </div>
             )}
 
