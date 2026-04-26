@@ -1,6 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
-import { BarChart3, TrendingUp, Users, AlertTriangle } from "lucide-react";
+import { BarChart3, TrendingUp, Users, AlertTriangle, Banknote } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { RevenueMonth, AgingBucket } from "@/types";
 
@@ -35,6 +35,7 @@ export function ReportsClient({ data }: Props) {
 
   const totalCollected = revenueByMonth.reduce((s, m) => s + m.collected, 0);
   const totalExpenses = revenueByMonth.reduce((s, m) => s + m.expenses, 0);
+  const totalProfit = revenueByMonth.reduce((s, m) => s + m.profit, 0);
   const avgOccupancy = revenueByMonth.length > 0
     ? Math.round(revenueByMonth.reduce((s, m) => s + m.occupancyRate, 0) / revenueByMonth.length)
     : 0;
@@ -61,8 +62,8 @@ export function ReportsClient({ data }: Props) {
         {[
           { label: "6-Mo Revenue", value: formatCurrency(totalCollected), icon: TrendingUp, color: "text-emerald-400", bg: "bg-emerald-500/10 border border-emerald-500/20" },
           { label: "6-Mo Expenses", value: formatCurrency(totalExpenses), icon: BarChart3, color: "text-rose-400", bg: "bg-rose-500/10 border border-rose-500/20" },
+          { label: "6-Mo Net Profit", value: formatCurrency(totalProfit), icon: Banknote, color: totalProfit >= 0 ? "text-yellow-400" : "text-red-400", bg: totalProfit >= 0 ? "bg-yellow-500/10 border border-yellow-500/20" : "bg-red-500/10 border border-red-500/20" },
           { label: "Avg Occupancy", value: `${avgOccupancy}%`, icon: Users, color: "text-blue-400", bg: "bg-blue-500/10 border border-blue-500/20" },
-          { label: "Avg Collection", value: `${avgCollection}%`, icon: TrendingUp, color: "text-amber", bg: "bg-amber/10 border border-amber/20" },
         ].map(({ label, value, icon: Icon, color, bg }) => (
           <div key={label} className="rounded-2xl border border-sidebar-border bg-card p-5">
             <div className="flex items-center gap-3">
@@ -90,6 +91,49 @@ export function ReportsClient({ data }: Props) {
           <h2 className="text-sm font-semibold text-foreground mb-1">Collection Rate</h2>
           <p className="text-xs text-muted-foreground mb-4">% of rent collected per month</p>
           <CollectionChart data={revenueByMonth} />
+        </div>
+      </div>
+
+      {/* Profit summary table */}
+      <div className="rounded-2xl border border-sidebar-border bg-card p-6">
+        <h2 className="text-sm font-semibold text-foreground mb-1">Monthly P&amp;L Summary</h2>
+        <p className="text-xs text-muted-foreground mb-4">Revenue, expenses and net profit per month</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-xs text-muted-foreground font-medium border-b border-sidebar-border">
+                <th className="text-left pb-2">Month</th>
+                <th className="text-right pb-2">Collected</th>
+                <th className="text-right pb-2">Expenses</th>
+                <th className="text-right pb-2">Salaries</th>
+                <th className="text-right pb-2">Net Profit</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-sidebar-border/50">
+              {revenueByMonth.map((m) => (
+                <tr key={m.monthKey} className="hover:bg-white/[0.02]">
+                  <td className="py-2.5 text-muted-foreground">{m.month}</td>
+                  <td className="py-2.5 text-right text-emerald-400 font-medium">{formatCurrency(m.collected)}</td>
+                  <td className="py-2.5 text-right text-rose-400">{formatCurrency(m.expenses - m.salaries)}</td>
+                  <td className="py-2.5 text-right text-orange-400">{formatCurrency(m.salaries)}</td>
+                  <td className={`py-2.5 text-right font-bold ${m.profit >= 0 ? "text-yellow-400" : "text-red-400"}`}>
+                    {m.profit >= 0 ? "+" : ""}{formatCurrency(m.profit)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-sidebar-border font-semibold">
+                <td className="pt-3 text-muted-foreground">6-Mo Total</td>
+                <td className="pt-3 text-right text-emerald-400">{formatCurrency(totalCollected)}</td>
+                <td className="pt-3 text-right text-rose-400">{formatCurrency(totalExpenses - revenueByMonth.reduce((s, m) => s + m.salaries, 0))}</td>
+                <td className="pt-3 text-right text-orange-400">{formatCurrency(revenueByMonth.reduce((s, m) => s + m.salaries, 0))}</td>
+                <td className={`pt-3 text-right font-bold ${totalProfit >= 0 ? "text-yellow-400" : "text-red-400"}`}>
+                  {totalProfit >= 0 ? "+" : ""}{formatCurrency(totalProfit)}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       </div>
 

@@ -9,6 +9,9 @@ export type PaymentMethod = "cash" | "bank_transfer" | "jazzcash" | "easypaisa" 
 export type ComplaintCategory = "plumbing" | "electricity" | "cleanliness" | "security" | "furniture" | "other";
 export type ComplaintPriority = "low" | "medium" | "high";
 export type ComplaintStatus = "open" | "in_progress" | "resolved";
+export type EmployeeRole = "cook" | "guard" | "cleaner" | "manager" | "driver" | "other";
+export type EmployeeStatus = "active" | "inactive";
+export type SalaryStatus = "pending" | "paid";
 
 export interface Profile {
   id: string;
@@ -179,6 +182,9 @@ export interface DashboardStats {
   total_tenants: number;
   monthly_expenses: number;
   monthly_kitchen: number;
+  monthly_salaries: number;
+  monthly_collected: number;
+  net_profit: number;
   unpaid_bills: number;
   unpaid_bills_amount: number;
   occupancy_rate: number;
@@ -191,6 +197,8 @@ export interface RevenueMonth {
   collected: number;
   due: number;
   expenses: number;
+  salaries: number;
+  profit: number;
   collectionRate: number;
   occupancyRate: number;
   moveIns: number;
@@ -200,4 +208,33 @@ export interface RevenueMonth {
 export interface AgingBucket {
   count: number;
   amount: number;
+}
+
+export interface Employee {
+  id: string;
+  hostel_id: string;
+  full_name: string;
+  role: EmployeeRole;
+  phone: string | null;
+  cnic: string | null;
+  join_date: string;
+  monthly_salary: number;
+  status: EmployeeStatus;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface SalaryPayment {
+  id: string;
+  hostel_id: string;
+  employee_id: string;
+  for_month: string;
+  amount: number;
+  status: SalaryStatus;
+  payment_method: string | null;
+  payment_date: string | null;
+  notes: string | null;
+  receipt_number: string | null;
+  created_at: string;
+  employee?: { full_name: string; role: string };
 }

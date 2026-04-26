@@ -2,7 +2,7 @@
 import dynamic from "next/dynamic";
 import {
   BedDouble, Users, TrendingDown, FileWarning,
-  ChefHat, Wallet, TrendingUp, CheckCircle2,
+  ChefHat, Wallet, TrendingUp, CheckCircle2, Banknote,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { DashboardStats, Bill } from "@/types";
@@ -28,11 +28,25 @@ interface Props {
 
 const kpiCards = (s: DashboardStats) => [
   {
-    label: "Total Rooms",
-    value: String(s.total_rooms),
-    sub: `${s.occupied_rooms} occupied`,
-    icon: BedDouble,
-    accent: "amber",
+    label: "Collected This Month",
+    value: formatCurrency(s.monthly_collected),
+    sub: `${formatCurrency(s.monthly_revenue)} expected`,
+    icon: Wallet,
+    accent: "emerald",
+  },
+  {
+    label: "Total Spend",
+    value: formatCurrency(s.monthly_expenses + s.monthly_kitchen + s.monthly_salaries),
+    sub: `${formatCurrency(s.monthly_salaries)} salaries`,
+    icon: TrendingDown,
+    accent: "rose",
+  },
+  {
+    label: "Net Profit",
+    value: formatCurrency(s.net_profit),
+    sub: s.net_profit >= 0 ? "This month" : "Loss this month",
+    icon: Banknote,
+    accent: s.net_profit >= 0 ? "gold" : "crimson",
   },
   {
     label: "Occupancy Rate",
@@ -41,20 +55,6 @@ const kpiCards = (s: DashboardStats) => [
     icon: TrendingUp,
     accent: "teal",
   },
-  {
-    label: "Monthly Revenue",
-    value: formatCurrency(s.monthly_revenue),
-    sub: "from bills collected",
-    icon: Wallet,
-    accent: "emerald",
-  },
-  {
-    label: "Total Spend",
-    value: formatCurrency(s.monthly_expenses + s.monthly_kitchen),
-    sub: `${formatCurrency(s.monthly_kitchen)} kitchen`,
-    icon: TrendingDown,
-    accent: "rose",
-  },
 ];
 
 const accentMap: Record<string, { icon: string; hover: string; text: string }> = {
@@ -62,6 +62,8 @@ const accentMap: Record<string, { icon: string; hover: string; text: string }> =
   teal:    { icon: "bg-teal/10 border border-teal/20",               hover: "hover:border-teal/30",           text: "text-teal" },
   emerald: { icon: "bg-emerald-500/10 border border-emerald-500/20", hover: "hover:border-emerald-500/30",    text: "text-emerald-400" },
   rose:    { icon: "bg-rose-500/10 border border-rose-500/20",       hover: "hover:border-rose-500/30",       text: "text-rose-400" },
+  gold:    { icon: "bg-yellow-500/10 border border-yellow-500/20",   hover: "hover:border-yellow-500/30",     text: "text-yellow-400" },
+  crimson: { icon: "bg-red-500/10 border border-red-500/20",         hover: "hover:border-red-500/30",        text: "text-red-400" },
 };
 
 export function DashboardClient({ data }: Props) {
@@ -115,7 +117,7 @@ export function DashboardClient({ data }: Props) {
       {/* Secondary stats row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: "Active Tenants", value: stats.occupied_rooms, icon: Users, color: "text-blue-400" },
+          { label: "Active Tenants", value: stats.total_tenants, icon: Users, color: "text-blue-400" },
           { label: "Kitchen Costs", value: formatCurrency(stats.monthly_kitchen), icon: ChefHat, color: "text-amber" },
           { label: "Unpaid Bills", value: stats.unpaid_bills, icon: FileWarning, color: "text-rose-400" },
           { label: "Unpaid Amount", value: formatCurrency(stats.unpaid_bills_amount), icon: TrendingDown, color: "text-rose-400" },

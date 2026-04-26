@@ -4,6 +4,7 @@ import { getMonthRange, formatDateInput } from "@/lib/utils";
 import type {
   Room, Expense, KitchenExpense, FoodItem, Bill, DashboardStats,
   Profile, Hostel, Tenant, Payment, Complaint, Announcement, RevenueMonth, AgingBucket,
+  Employee, SalaryPayment,
 } from "@/types";
 
 // React cache() deduplicates within the same server request.
@@ -37,7 +38,9 @@ export async function getDashboardData() {
   const fullStart = formatDateInput(new Date(now.getFullYear(), now.getMonth() - 5, 1));
   const fullEnd = formatDateInput(new Date(now.getFullYear(), now.getMonth() + 1, 0));
 
-  const [rooms, tenants, expenses, kitchen, bills, allExp, allKit] = await Promise.all([
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  const [rooms, tenants, expenses, kitchen, bills, allExp, allKit, collectedPayments, paidSalaries] = await Promise.all([
     supabase.from("hms_rooms").select("status,monthly_rent").eq("hostel_id", hostelId),
     supabase.from("hms_tenants").select("monthly_rent").eq("hostel_id", hostelId).eq("is_active", true),
     supabase.from("hms_expenses").select("amount").eq("hostel_id", hostelId).gte("date", start).lte("date", end),
@@ -45,6 +48,8 @@ export async function getDashboardData() {
     supabase.from("hms_bills").select("id,hostel_id,title,category,amount,due_date,paid_date,status,notes,created_at").eq("hostel_id", hostelId).neq("status", "paid").order("due_date").limit(5),
     supabase.from("hms_expenses").select("amount,date").eq("hostel_id", hostelId).gte("date", fullStart).lte("date", fullEnd),
     supabase.from("hms_kitchen_expenses").select("amount,date").eq("hostel_id", hostelId).gte("date", fullStart).lte("date", fullEnd),
+    supabase.from("hms_payments").select("amount").eq("hostel_id", hostelId).eq("for_month", currentMonthKey).eq("status", "paid"),
+    supabase.from("hms_salary_payments").select("amount").eq("hostel_id", hostelId).eq("for_month", currentMonthKey).eq("status", "paid"),
   ]);
 
   const roomData = rooms.data ?? [];
@@ -52,6 +57,8 @@ export async function getDashboardData() {
   const occupiedRooms = roomData.filter((r) => r.status === "occupied").length;
   const monthlyExpenses = (expenses.data ?? []).reduce((s, e) => s + Number(e.amount), 0);
   const monthlyKitchen = (kitchen.data ?? []).reduce((s, e) => s + Number(e.amount), 0);
+  const monthlySalaries = (paidSalaries.data ?? []).reduce((s, e) => s + Number(e.amount), 0);
+  const monthlyCollected = (collectedPayments.data ?? []).reduce((s, e) => s + Number(e.amount), 0);
   const unpaidBills = bills.data ?? [];
   const monthlyRevenue = (tenants.data ?? []).reduce((s, t) => s + Number(t.monthly_rent), 0);
 
@@ -77,6 +84,9 @@ export async function getDashboardData() {
     total_tenants: tenants.data?.length ?? 0,
     monthly_expenses: monthlyExpenses,
     monthly_kitchen: monthlyKitchen,
+    monthly_salaries: monthlySalaries,
+    monthly_collected: monthlyCollected,
+    net_profit: monthlyCollected - monthlyExpenses - monthlyKitchen - monthlySalaries,
     unpaid_bills: unpaidBills.length,
     unpaid_bills_amount: unpaidBills.reduce((s, b) => s + Number(b.amount), 0),
     occupancy_rate: totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0,
@@ -205,18 +215,20 @@ export async function getReportsData() {
   const fullStart = ranges[0].start;
   const fullEnd = ranges[5].end;
 
-  const [paymentsRes, expensesRes, kitchenRes, tenantsRes, roomsRes] = await Promise.all([
+  const [paymentsRes, expensesRes, kitchenRes, tenantsRes, roomsRes, salariesRes] = await Promise.all([
     supabase.from("hms_payments").select("for_month,amount,status").eq("hostel_id", hostelId),
     supabase.from("hms_expenses").select("amount,date").eq("hostel_id", hostelId).gte("date", fullStart).lte("date", fullEnd),
     supabase.from("hms_kitchen_expenses").select("amount,date").eq("hostel_id", hostelId).gte("date", fullStart).lte("date", fullEnd),
     supabase.from("hms_tenants").select("check_in,check_out,is_active").eq("hostel_id", hostelId),
     supabase.from("hms_rooms").select("capacity").eq("hostel_id", hostelId),
+    supabase.from("hms_salary_payments").select("for_month,amount,status").eq("hostel_id", hostelId),
   ]);
 
   const payments = paymentsRes.data ?? [];
   const expenses = expensesRes.data ?? [];
   const kitchen = kitchenRes.data ?? [];
   const tenants = tenantsRes.data ?? [];
+  const salaries = salariesRes.data ?? [];
   const totalCapacity = (roomsRes.data ?? []).reduce((s, r) => s + r.capacity, 0);
 
   const revenueByMonth: RevenueMonth[] = ranges.map(({ month, monthKey, start, end }) => {
@@ -225,13 +237,17 @@ export async function getReportsData() {
     const due = monthPayments.reduce((s, p) => s + Number(p.amount), 0);
     const exp = expenses.filter((e) => e.date >= start && e.date <= end).reduce((s, e) => s + Number(e.amount), 0);
     const kit = kitchen.filter((k) => k.date >= start && k.date <= end).reduce((s, k) => s + Number(k.amount), 0);
+    const sal = salaries.filter((s) => s.for_month === monthKey && s.status === "paid").reduce((sum, s) => sum + Number(s.amount), 0);
     const activeCount = tenants.filter((t) => t.check_in <= end && (!t.check_out || t.check_out >= start)).length;
+    const totalExp = exp + kit + sal;
     return {
       month,
       monthKey,
       collected,
       due,
-      expenses: exp + kit,
+      expenses: totalExp,
+      salaries: sal,
+      profit: collected - totalExp,
       collectionRate: due > 0 ? Math.round((collected / due) * 100) : 0,
       occupancyRate: totalCapacity > 0 ? Math.round((activeCount / totalCapacity) * 100) : 0,
       moveIns: tenants.filter((t) => t.check_in >= start && t.check_in <= end).length,
@@ -296,4 +312,25 @@ export async function getBills() {
   const { supabase, hostelId } = ctx;
   const { data } = await supabase.from("hms_bills").select("*").eq("hostel_id", hostelId).order("due_date", { ascending: false });
   return { hostelId, bills: (data as Bill[]) ?? [] };
+}
+
+export async function getEmployeesData() {
+  const ctx = await getAuthContext();
+  if (!ctx?.hostelId) return { hostelId: null, employees: [], salaryPayments: [] };
+  const { supabase, hostelId } = ctx;
+
+  const [{ data: employees }, { data: salaryPayments }] = await Promise.all([
+    supabase.from("hms_employees").select("*").eq("hostel_id", hostelId).order("full_name"),
+    supabase.from("hms_salary_payments")
+      .select("*, employee:hms_employees(full_name, role)")
+      .eq("hostel_id", hostelId)
+      .order("for_month", { ascending: false })
+      .limit(200),
+  ]);
+
+  return {
+    hostelId,
+    employees: (employees ?? []) as Employee[],
+    salaryPayments: (salaryPayments ?? []) as SalaryPayment[],
+  };
 }
