@@ -1,6 +1,6 @@
 "use client";
 import { useState, useMemo } from "react";
-import { Plus, FileText, Search, Edit2, Trash2, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
+import { Plus, FileText, Search, Edit2, Trash2, CheckCircle2, Clock, AlertTriangle, Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,17 @@ const statusConfig: Record<BillStatus, { label: string; icon: typeof CheckCircle
   unpaid: { label: "Unpaid", icon: Clock, badge: "warning" },
   overdue: { label: "Overdue", icon: AlertTriangle, badge: "destructive" },
 };
+
+const PRESETS: { icon: string; label: string; category: BillCategory }[] = [
+  { icon: "⚡", label: "Electricity", category: "electricity" },
+  { icon: "💧", label: "Water", category: "water" },
+  { icon: "🔥", label: "Gas", category: "gas" },
+  { icon: "🌐", label: "Internet", category: "internet" },
+  { icon: "🏠", label: "Space Rent", category: "other" },
+  { icon: "📺", label: "Cable TV", category: "other" },
+  { icon: "🔧", label: "Maintenance", category: "maintenance" },
+];
+
 const emptyForm = { title: "", category: "electricity" as BillCategory, amount: "", due_date: formatDateInput(new Date()), paid_date: "", status: "unpaid" as BillStatus, notes: "" };
 
 interface Props { hostelId: string | null; initialBills: Bill[]; }
@@ -46,6 +57,16 @@ export function BillsClient({ hostelId, initialBills }: Props) {
     const supabase = createClient();
     const { data } = await supabase.from("hms_bills").select("*").eq("hostel_id", hostelId).order("due_date", { ascending: false });
     setBills((data as Bill[]) ?? []);
+  }
+
+  function openAdd(preset?: { label: string; category: BillCategory }) {
+    setEditing(null);
+    setForm({
+      ...emptyForm,
+      title: preset?.label ?? "",
+      category: preset?.category ?? "electricity",
+    });
+    setDialogOpen(true);
   }
 
   async function handleSave() {
@@ -84,7 +105,27 @@ export function BillsClient({ hostelId, initialBills }: Props) {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div><h1 className="text-3xl font-serif font-normal tracking-tight">Bills</h1><p className="text-muted-foreground text-sm mt-1">Track utility and other bills</p></div>
-        <Button onClick={() => { setEditing(null); setForm(emptyForm); setDialogOpen(true); }} className="gap-2 w-full sm:w-auto"><Plus className="w-4 h-4" /> Add Bill</Button>
+        <Button onClick={() => openAdd()} className="gap-2 w-full sm:w-auto"><Plus className="w-4 h-4" /> Add Bill</Button>
+      </div>
+
+      {/* Quick-add presets */}
+      <div className="rounded-2xl border border-sidebar-border bg-card p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Zap className="w-3.5 h-3.5 text-amber" />
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Quick Add</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {PRESETS.map((p) => (
+            <button
+              key={p.label}
+              onClick={() => openAdd(p)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-sidebar-border bg-white/[0.03] hover:bg-white/[0.07] hover:border-amber/30 text-sm transition-colors"
+            >
+              <span>{p.icon}</span>
+              <span className="text-foreground/80">{p.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -107,11 +148,11 @@ export function BillsClient({ hostelId, initialBills }: Props) {
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground"><FileText className="w-10 h-10 mb-3 opacity-30" /><p className="font-medium">No bills found</p></div>
           ) : (
-            <div className="divide-y">
+            <div className="divide-y divide-sidebar-border">
               {filtered.map((bill) => {
                 const cfg = statusConfig[bill.status];
                 return (
-                  <div key={bill.id} className="flex items-center gap-3 px-4 py-4 hover:bg-muted/20 transition-colors">
+                  <div key={bill.id} className="flex items-center gap-3 px-4 py-4 hover:bg-white/[0.02] transition-colors">
                     <div className="text-2xl shrink-0">{categoryIcons[bill.category]}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2"><p className="font-medium text-sm">{bill.title}</p><Badge variant={cfg.badge} className="text-xs">{cfg.label}</Badge></div>

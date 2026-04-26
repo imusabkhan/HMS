@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
-import { Plus, UtensilsCrossed, Edit2, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Plus, UtensilsCrossed, Edit2, Trash2, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { formatDate, formatDateInput } from "@/lib/utils";
@@ -21,11 +22,26 @@ const mealColors: Record<MealType, string> = {
   dinner: "bg-blue-500/10 text-blue-400 border-blue-500/20",
   snack: "bg-purple-500/10 text-purple-400 border-purple-500/20",
 };
+const mealDot: Record<MealType, string> = {
+  breakfast: "bg-amber",
+  lunch: "bg-emerald-400",
+  dinner: "bg-blue-400",
+  snack: "bg-purple-400",
+};
 const mealIcons: Record<MealType, string> = { breakfast: "☀️", lunch: "🌤️", dinner: "🌙", snack: "🍎" };
 
 const emptyForm = { date: formatDateInput(new Date()), meal_type: "lunch" as MealType, item_name: "", quantity: "", unit_cost: "", notes: "" };
 
+function getMonthRange(month: string) {
+  const [year, m] = month.split("-").map(Number);
+  const start = `${month}-01`;
+  const end = formatDateInput(new Date(year, m, 0));
+  return { start, end };
+}
+
 interface Props { hostelId: string | null; initialItems: FoodItem[]; initialDate: string; }
+
+const monthCache = new Map<string, FoodItem[]>();
 
 export function FoodClient({ hostelId, initialItems, initialDate }: Props) {
   const [items, setItems] = useState<FoodItem[]>(initialItems);
@@ -36,6 +52,11 @@ export function FoodClient({ hostelId, initialItems, initialDate }: Props) {
   const [saving, setSaving] = useState(false);
   const [selectedDate, setSelectedDate] = useState(initialDate);
 
+  // Monthly menu state
+  const [monthItems, setMonthItems] = useState<FoodItem[]>([]);
+  const [monthFilter, setMonthFilter] = useState(initialDate.slice(0, 7));
+  const [loadingMonth, setLoadingMonth] = useState(false);
+
   async function loadDate(date: string) {
     if (!hostelId) return;
     setLoading(true);
@@ -43,6 +64,19 @@ export function FoodClient({ hostelId, initialItems, initialDate }: Props) {
     const { data } = await supabase.from("hms_food_items").select("*").eq("hostel_id", hostelId).eq("date", date).order("meal_type");
     setItems((data as FoodItem[]) ?? []);
     setLoading(false);
+  }
+
+  async function loadMonth(month: string) {
+    if (!hostelId) return;
+    const cacheKey = `${hostelId}:${month}`;
+    if (monthCache.has(cacheKey)) { setMonthItems(monthCache.get(cacheKey)!); return; }
+    setLoadingMonth(true);
+    const supabase = createClient();
+    const { start, end } = getMonthRange(month);
+    const { data, error } = await supabase.from("hms_food_items").select("*").eq("hostel_id", hostelId).gte("date", start).lte("date", end).order("date").order("meal_type");
+    if (error) toast({ title: "Failed to load", description: error.message, variant: "destructive" });
+    else { const rows = (data as FoodItem[]) ?? []; monthCache.set(cacheKey, rows); setMonthItems(rows); }
+    setLoadingMonth(false);
   }
 
   function changeDate(delta: number) {
@@ -65,7 +99,12 @@ export function FoodClient({ hostelId, initialItems, initialDate }: Props) {
     const payload = { hostel_id: hostelId, date: form.date, meal_type: form.meal_type, item_name: form.item_name, quantity: form.quantity || null, unit_cost: form.unit_cost ? parseFloat(form.unit_cost) : null, notes: form.notes || null };
     const { error } = editing ? await supabase.from("hms_food_items").update(payload).eq("id", editing.id) : await supabase.from("hms_food_items").insert(payload);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else { toast({ title: editing ? "Updated" : "Added" }); setDialogOpen(false); loadDate(selectedDate); }
+    else {
+      toast({ title: editing ? "Updated" : "Added" });
+      setDialogOpen(false);
+      loadDate(selectedDate);
+      monthCache.delete(`${hostelId}:${monthFilter}`);
+    }
     setSaving(false);
   }
 
@@ -74,13 +113,30 @@ export function FoodClient({ hostelId, initialItems, initialDate }: Props) {
     const supabase = createClient();
     const { error } = await supabase.from("hms_food_items").delete().eq("id", id);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else { toast({ title: "Deleted" }); loadDate(selectedDate); }
+    else {
+      toast({ title: "Deleted" });
+      loadDate(selectedDate);
+      monthCache.delete(`${hostelId}:${monthFilter}`);
+    }
   }
 
   const grouped = mealTypes.reduce<Record<MealType, FoodItem[]>>((acc, m) => {
     acc[m] = items.filter((i) => i.meal_type === m);
     return acc;
   }, { breakfast: [], lunch: [], dinner: [], snack: [] });
+
+  // Group monthly items by date
+  const groupedByDate = useMemo(() => {
+    return monthItems.reduce<Record<string, Record<MealType, FoodItem[]>>>((acc, item) => {
+      if (!acc[item.date]) {
+        acc[item.date] = { breakfast: [], lunch: [], dinner: [], snack: [] };
+      }
+      acc[item.date][item.meal_type].push(item);
+      return acc;
+    }, {});
+  }, [monthItems]);
+
+  const sortedDates = useMemo(() => Object.keys(groupedByDate).sort(), [groupedByDate]);
 
   return (
     <div className="space-y-6">
@@ -89,58 +145,132 @@ export function FoodClient({ hostelId, initialItems, initialDate }: Props) {
         <Button onClick={() => { setEditing(null); setForm({ ...emptyForm, date: selectedDate }); setDialogOpen(true); }} className="gap-2 w-full sm:w-auto"><Plus className="w-4 h-4" /> Add Item</Button>
       </div>
 
-      <div className="flex items-center gap-3 justify-center sm:justify-start">
-        <Button variant="outline" size="icon" onClick={() => changeDate(-1)}><ChevronLeft className="w-4 h-4" /></Button>
-        <div className="flex items-center gap-2">
-          <Input type="date" value={selectedDate} onChange={(e) => goToDate(e.target.value)} className="w-auto" />
-          <span className="text-sm text-muted-foreground hidden sm:block">{formatDate(selectedDate)}</span>
-        </div>
-        <Button variant="outline" size="icon" onClick={() => changeDate(1)}><ChevronRight className="w-4 h-4" /></Button>
-        <Button variant="outline" size="sm" onClick={() => goToDate(formatDateInput(new Date()))}>Today</Button>
-      </div>
+      <Tabs defaultValue="daily" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="daily">Daily View</TabsTrigger>
+          <TabsTrigger value="monthly" onClick={() => { if (monthItems.length === 0) loadMonth(monthFilter); }}>
+            <CalendarDays className="w-3.5 h-3.5 mr-1.5" />Monthly Menu
+          </TabsTrigger>
+        </TabsList>
 
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-40 bg-muted rounded-lg animate-pulse" />)}</div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {mealTypes.map((meal) => (
-            <Card key={meal} className="overflow-hidden">
-              <CardHeader className={`py-3 px-4 border-b ${mealColors[meal]} bg-opacity-50`}>
-                <CardTitle className="text-sm flex items-center gap-2 capitalize">
-                  <span>{mealIcons[meal]}</span> {meal}
-                  <Badge variant="secondary" className="ml-auto text-xs">{grouped[meal].length} items</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-3 space-y-2 min-h-[80px]">
-                {grouped[meal].length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-4">No items added</p>
-                ) : (
-                  grouped[meal].map((item) => (
-                    <div key={item.id} className="flex items-start gap-2 p-2 rounded-md hover:bg-muted/50 group">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{item.item_name}</p>
-                        <div className="flex flex-wrap gap-2 mt-0.5">
-                          {item.quantity && <span className="text-xs text-muted-foreground">{item.quantity}</span>}
-                          {item.unit_cost && <span className="text-xs text-muted-foreground">PKR {item.unit_cost}</span>}
-                          {item.notes && <span className="text-xs text-muted-foreground italic">{item.notes}</span>}
+        {/* Daily View */}
+        <TabsContent value="daily" className="space-y-6">
+          <div className="flex items-center gap-3 justify-center sm:justify-start">
+            <Button variant="outline" size="icon" onClick={() => changeDate(-1)}><ChevronLeft className="w-4 h-4" /></Button>
+            <div className="flex items-center gap-2">
+              <Input type="date" value={selectedDate} onChange={(e) => goToDate(e.target.value)} className="w-auto" />
+              <span className="text-sm text-muted-foreground hidden sm:block">{formatDate(selectedDate)}</span>
+            </div>
+            <Button variant="outline" size="icon" onClick={() => changeDate(1)}><ChevronRight className="w-4 h-4" /></Button>
+            <Button variant="outline" size="sm" onClick={() => goToDate(formatDateInput(new Date()))}>Today</Button>
+          </div>
+
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-40 bg-white/5 rounded-xl animate-pulse" />)}</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {mealTypes.map((meal) => (
+                <Card key={meal} className="overflow-hidden">
+                  <CardHeader className={`py-3 px-4 border-b border-sidebar-border ${mealColors[meal]}`}>
+                    <CardTitle className="text-sm flex items-center gap-2 capitalize">
+                      <span>{mealIcons[meal]}</span> {meal}
+                      <Badge variant="secondary" className="ml-auto text-xs">{grouped[meal].length} items</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-3 space-y-2 min-h-[80px]">
+                    {grouped[meal].length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-4">No items added</p>
+                    ) : (
+                      grouped[meal].map((item) => (
+                        <div key={item.id} className="flex items-start gap-2 p-2 rounded-md hover:bg-white/[0.03] group">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium">{item.item_name}</p>
+                            <div className="flex flex-wrap gap-2 mt-0.5">
+                              {item.quantity && <span className="text-xs text-muted-foreground">{item.quantity}</span>}
+                              {item.unit_cost && <span className="text-xs text-muted-foreground">PKR {item.unit_cost}</span>}
+                              {item.notes && <span className="text-xs text-muted-foreground italic">{item.notes}</span>}
+                            </div>
+                          </div>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setEditing(item); setForm({ date: item.date, meal_type: item.meal_type, item_name: item.item_name, quantity: item.quantity ?? "", unit_cost: item.unit_cost?.toString() ?? "", notes: item.notes ?? "" }); setDialogOpen(true); }}><Edit2 className="w-3 h-3" /></Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => handleDelete(item.id)}><Trash2 className="w-3 h-3" /></Button>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setEditing(item); setForm({ date: item.date, meal_type: item.meal_type, item_name: item.item_name, quantity: item.quantity ?? "", unit_cost: item.unit_cost?.toString() ?? "", notes: item.notes ?? "" }); setDialogOpen(true); }}><Edit2 className="w-3 h-3" /></Button>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => handleDelete(item.id)}><Trash2 className="w-3 h-3" /></Button>
-                      </div>
-                    </div>
-                  ))
-                )}
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {items.length === 0 && !loading && (
+            <div className="flex flex-col items-center py-4 text-muted-foreground"><UtensilsCrossed className="w-8 h-8 mb-2 opacity-30" /><p className="text-sm">No food items for this date. Add your first meal!</p></div>
+          )}
+        </TabsContent>
+
+        {/* Monthly Menu */}
+        <TabsContent value="monthly" className="space-y-6">
+          <div className="flex items-center gap-3">
+            <Input
+              type="month"
+              value={monthFilter}
+              onChange={(e) => { setMonthFilter(e.target.value); monthCache.delete(`${hostelId}:${e.target.value}`); loadMonth(e.target.value); }}
+              className="w-auto"
+            />
+            <span className="text-sm text-muted-foreground">{monthItems.length} items total</span>
+          </div>
+
+          {loadingMonth ? (
+            <div className="space-y-4">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-24 bg-white/5 rounded-xl animate-pulse" />)}</div>
+          ) : sortedDates.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <CalendarDays className="w-10 h-10 mb-3 opacity-30" />
+                <p className="font-medium">No menu entries for this month</p>
+                <p className="text-sm mt-1">Add items from the Daily View tab</p>
               </CardContent>
             </Card>
-          ))}
-        </div>
-      )}
-
-      {items.length === 0 && !loading && (
-        <div className="flex flex-col items-center py-4 text-muted-foreground"><UtensilsCrossed className="w-8 h-8 mb-2 opacity-30" /><p className="text-sm">No food items for this date. Add your first meal!</p></div>
-      )}
+          ) : (
+            <div className="space-y-3">
+              {sortedDates.map((date) => {
+                const dayMeals = groupedByDate[date];
+                const hasItems = mealTypes.some((m) => dayMeals[m].length > 0);
+                if (!hasItems) return null;
+                return (
+                  <Card key={date}>
+                    <CardContent className="p-0">
+                      <div className="flex items-center justify-between px-4 py-3 border-b border-sidebar-border bg-white/[0.02]">
+                        <span className="text-sm font-semibold">{formatDate(date)}</span>
+                        <span className="text-xs text-muted-foreground">{mealTypes.filter((m) => dayMeals[m].length > 0).length} meals</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-sidebar-border">
+                        {mealTypes.map((meal) => (
+                          <div key={meal} className="p-3">
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <span className={`w-1.5 h-1.5 rounded-full ${mealDot[meal]}`} />
+                              <span className="text-xs font-medium capitalize text-muted-foreground">{mealIcons[meal]} {meal}</span>
+                            </div>
+                            {dayMeals[meal].length === 0 ? (
+                              <p className="text-xs text-muted-foreground/50">—</p>
+                            ) : (
+                              <ul className="space-y-0.5">
+                                {dayMeals[meal].map((item) => (
+                                  <li key={item.id} className="text-xs text-foreground">{item.item_name}{item.quantity ? <span className="text-muted-foreground"> ({item.quantity})</span> : ""}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
