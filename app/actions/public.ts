@@ -9,28 +9,45 @@ export async function getPublicHostels(): Promise<{ hostels?: PublicHostel[]; er
 
     const { data, error } = await admin
       .from("hms_hostels")
-      .select("id,name,address,phone,email,total_capacity,city,area,maps_url,description,hostel_type,amenities")
+      .select("id,owner_id,name,address,phone,email,total_capacity,city,area,maps_url,description,hostel_type,amenities")
       .eq("listing_enabled", true)
       .order("name");
     if (error) throw error;
 
-    const hostels = (data ?? []) as Omit<PublicHostel, "available_beds">[];
+    const hostels = (data ?? []) as (Omit<PublicHostel, "available_beds" | "owner_name">)[];
     if (hostels.length === 0) return { hostels: [] };
 
-    const ids = hostels.map((h) => h.id);
-    const { data: rooms } = await admin
-      .from("hms_rooms")
-      .select("hostel_id, capacity, occupied")
-      .in("hostel_id", ids)
-      .eq("status", "available");
+    const ids      = hostels.map((h) => h.id);
+    const ownerIds = [...new Set(hostels.map((h) => h.owner_id))];
+
+    const [{ data: rooms }, { data: profiles }] = await Promise.all([
+      admin
+        .from("hms_rooms")
+        .select("hostel_id, capacity, occupied")
+        .in("hostel_id", ids)
+        .eq("status", "available"),
+      admin
+        .from("hms_profiles")
+        .select("id, full_name")
+        .in("id", ownerIds),
+    ]);
 
     const availMap: Record<string, number> = {};
     for (const r of rooms ?? []) {
       availMap[r.hostel_id] = (availMap[r.hostel_id] ?? 0) + Math.max(0, r.capacity - r.occupied);
     }
 
+    const ownerMap: Record<string, string | null> = {};
+    for (const p of profiles ?? []) {
+      ownerMap[p.id] = p.full_name;
+    }
+
     return {
-      hostels: hostels.map((h) => ({ ...h, available_beds: availMap[h.id] ?? 0 })),
+      hostels: hostels.map((h) => ({
+        ...h,
+        owner_name: ownerMap[h.owner_id] ?? null,
+        available_beds: availMap[h.id] ?? 0,
+      })),
     };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to load hostels" };

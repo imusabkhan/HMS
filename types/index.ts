@@ -55,6 +55,8 @@ export interface Hostel {
 
 export interface PublicHostel {
   id: string;
+  owner_id: string;
+  owner_name: string | null;
   name: string;
   address: string | null;
   phone: string | null;

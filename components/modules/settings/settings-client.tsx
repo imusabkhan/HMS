@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Building2, User, Save, Loader2, Globe, ExternalLink } from "lucide-react";
+import { Building2, User, Save, Loader2, Globe, ExternalLink, Clock, Phone, RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useHostelContext } from "@/contexts/hostel-context";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -20,7 +20,7 @@ const HOSTEL_TYPES: { value: HostelType; label: string }[] = [
 
 const ALL_AMENITIES = [
   "WiFi", "AC", "Generator / UPS", "Meals Included", "Laundry",
-  "Parking", "CCTV", "Hot Water", "Study Room", "Attached Bath", "Security Guard",
+  "Parking", "CCTV", "Hot Water", "Study Room", "Attached Bath", "Security Guard", "Cupboard",
 ];
 
 export function SettingsClient() {
@@ -42,6 +42,22 @@ export function SettingsClient() {
   const [savingListing, setSavingListing] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
 
+  type WaitlistEntry = { id: string; name: string; phone: string; created_at: string };
+  const [waitlist, setWaitlist]           = useState<WaitlistEntry[]>([]);
+  const [loadingWaitlist, setLoadingWaitlist] = useState(false);
+
+  async function fetchWaitlist(id: string) {
+    setLoadingWaitlist(true);
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("hms_waitlist")
+      .select("id, name, phone, created_at")
+      .eq("hostel_id", id)
+      .order("created_at", { ascending: false });
+    setWaitlist((data ?? []) as WaitlistEntry[]);
+    setLoadingWaitlist(false);
+  }
+
   useEffect(() => {
     if (hostel) {
       setHostelForm({
@@ -60,6 +76,7 @@ export function SettingsClient() {
         hostel_type: hostel.hostel_type ?? "",
         amenities: hostel.amenities ?? [],
       });
+      fetchWaitlist(hostel.id);
     }
   }, [hostel]);
 
@@ -303,6 +320,74 @@ export function SettingsClient() {
               Save Listing
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      {/* Waitlist */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-muted-foreground" />
+              <CardTitle className="text-base">Waitlist</CardTitle>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => hostelId && fetchWaitlist(hostelId)}
+              disabled={loadingWaitlist}
+              className="gap-1.5 h-8 text-xs"
+            >
+              <RefreshCw className={`w-3 h-3 ${loadingWaitlist ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
+          <CardDescription>
+            People waiting for a bed at this hostel — {waitlist.length} {waitlist.length === 1 ? "person" : "people"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {waitlist.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 gap-2 text-muted-foreground">
+              <Clock className="w-8 h-8 opacity-20" />
+              <p className="text-sm">No one on the waitlist yet</p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-sidebar-border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-sidebar-border bg-white/[0.02]">
+                    <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2.5">Name</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2.5">Phone / WhatsApp</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2.5">Joined</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-sidebar-border">
+                  {waitlist.map((entry) => (
+                    <tr key={entry.id} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="px-4 py-3 font-medium text-foreground text-sm">{entry.name}</td>
+                      <td className="px-4 py-3">
+                        <a
+                          href={`https://wa.me/${entry.phone.replace(/\D/g, "").replace(/^0/, "92")}?text=${encodeURIComponent(`Hi ${entry.name}! A bed has opened up at our hostel. Are you still interested?`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs text-[#25D366] hover:underline"
+                        >
+                          <Phone className="w-3 h-3" />
+                          {entry.phone}
+                        </a>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                        {new Date(entry.created_at).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 

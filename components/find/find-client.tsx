@@ -247,6 +247,75 @@ function HostelCard({ h }: { h: PublicHostel }) {
   );
 }
 
+// ── Grid: groups multi-hostel owners ─────────────────────────────────────────
+
+function ownerInitials(name: string | null): string {
+  if (!name) return "?";
+  return name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
+}
+
+function HostelGrid({ hostels }: { hostels: PublicHostel[] }) {
+  // Count hostels per owner
+  const countByOwner: Record<string, number> = {};
+  for (const h of hostels) countByOwner[h.owner_id] = (countByOwner[h.owner_id] ?? 0) + 1;
+
+  // Separate multi-hostel owners from singles
+  const groups: Record<string, PublicHostel[]> = {};
+  const singles: PublicHostel[] = [];
+
+  for (const h of hostels) {
+    if (countByOwner[h.owner_id] > 1) {
+      if (!groups[h.owner_id]) groups[h.owner_id] = [];
+      groups[h.owner_id].push(h);
+    } else {
+      singles.push(h);
+    }
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Multi-hostel owner groups */}
+      {Object.values(groups).map((group) => {
+        const owner = group[0];
+        return (
+          <div key={owner.owner_id}>
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="w-7 h-7 rounded-full bg-amber/10 border border-amber/20 flex items-center justify-center shrink-0">
+                <span className="text-[10px] font-bold text-amber">{ownerInitials(owner.owner_name)}</span>
+              </div>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-sm font-medium text-foreground truncate">
+                  {owner.owner_name ?? "Hostel Owner"}
+                </span>
+                <span className="text-xs text-muted-foreground shrink-0">
+                  · {group.length} properties
+                </span>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {group.map((h) => <HostelCard key={h.id} h={h} />)}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Single-hostel owners — flat grid */}
+      {singles.length > 0 && (
+        <div>
+          {Object.keys(groups).length > 0 && (
+            <p className="text-xs font-semibold text-muted-foreground/50 uppercase tracking-widest mb-3">
+              Other Hostels
+            </p>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {singles.map((h) => <HostelCard key={h.id} h={h} />)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 const ALL_TYPES: { value: HostelType | "all"; label: string }[] = [
@@ -402,9 +471,7 @@ export function FindClient({ hostels }: Props) {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map((h) => <HostelCard key={h.id} h={h} />)}
-          </div>
+          <HostelGrid hostels={filtered} />
         )}
       </div>
     </div>
