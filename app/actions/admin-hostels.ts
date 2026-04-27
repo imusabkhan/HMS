@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { writeAuditLog } from "@/lib/audit";
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -68,7 +69,7 @@ export async function createHostel(data: {
   total_capacity?: number;
 }): Promise<{ hostelId?: string; error?: string }> {
   try {
-    await requireAdmin();
+    const caller = await requireAdmin();
     if (!data.owner_id || !data.name) throw new Error("Owner and name are required");
 
     const admin = createAdminClient();
@@ -86,6 +87,13 @@ export async function createHostel(data: {
       .single();
 
     if (error) throw error;
+
+    await writeAuditLog({
+      actor_id: caller.id, actor_email: caller.email ?? "",
+      action: "hostel.create", entity: "hostel", entity_id: hostel.id,
+      meta: { name: data.name, owner_id: data.owner_id },
+    });
+
     return { hostelId: hostel.id };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to create hostel" };
@@ -101,7 +109,7 @@ export async function updateHostel(data: {
   total_capacity?: number;
 }): Promise<{ error?: string }> {
   try {
-    await requireAdmin();
+    const caller = await requireAdmin();
     const admin = createAdminClient();
     const updates: Record<string, unknown> = {};
     if (data.name !== undefined) updates.name = data.name;
@@ -112,6 +120,13 @@ export async function updateHostel(data: {
 
     const { error } = await admin.from("hms_hostels").update(updates).eq("id", data.hostelId);
     if (error) throw error;
+
+    await writeAuditLog({
+      actor_id: caller.id, actor_email: caller.email ?? "",
+      action: "hostel.update", entity: "hostel", entity_id: data.hostelId,
+      meta: { changes: updates },
+    });
+
     return {};
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to update hostel" };
@@ -120,12 +135,12 @@ export async function updateHostel(data: {
 
 export async function deleteHostel(hostelId: string): Promise<{ error?: string }> {
   try {
-    await requireAdmin();
+    const caller = await requireAdmin();
     const admin = createAdminClient();
 
     const { data: hostel } = await admin
       .from("hms_hostels")
-      .select("owner_id")
+      .select("owner_id, name")
       .eq("id", hostelId)
       .single();
     if (!hostel) throw new Error("Hostel not found");
@@ -138,6 +153,13 @@ export async function deleteHostel(hostelId: string): Promise<{ error?: string }
 
     const { error } = await admin.from("hms_hostels").delete().eq("id", hostelId);
     if (error) throw error;
+
+    await writeAuditLog({
+      actor_id: caller.id, actor_email: caller.email ?? "",
+      action: "hostel.delete", entity: "hostel", entity_id: hostelId,
+      meta: { name: hostel.name, owner_id: hostel.owner_id },
+    });
+
     return {};
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to delete hostel" };

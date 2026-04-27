@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Plus, Megaphone, Pin, PinOff, Trash2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,7 @@ export function AnnouncementsClient({ hostelId, announcements: initial }: Props)
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   async function reload() {
     if (!hostelId) return;
@@ -56,10 +58,9 @@ export function AnnouncementsClient({ hostelId, announcements: initial }: Props)
     await reload();
   }
 
-  async function handleDelete(a: Announcement) {
-    if (!confirm("Delete this announcement?")) return;
+  async function handleDelete(id: string) {
     const supabase = createClient();
-    const { error } = await supabase.from("hms_announcements").delete().eq("id", a.id);
+    const { error } = await supabase.from("hms_announcements").delete().eq("id", id);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Deleted" });
     await reload();
@@ -109,7 +110,7 @@ export function AnnouncementsClient({ hostelId, announcements: initial }: Props)
                   <Button variant="ghost" size="icon" className="h-7 w-7 text-amber hover:bg-amber/10" onClick={() => togglePin(a)}>
                     <PinOff className="w-3.5 h-3.5" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(a)}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteId(a.id)}>
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
@@ -135,7 +136,7 @@ export function AnnouncementsClient({ hostelId, announcements: initial }: Props)
                   <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-amber hover:bg-amber/10" onClick={() => togglePin(a)}>
                     <Pin className="w-3.5 h-3.5" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(a)}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteId(a.id)}>
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
@@ -144,6 +145,14 @@ export function AnnouncementsClient({ hostelId, announcements: initial }: Props)
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteId}
+        title="Delete announcement?"
+        description="This announcement will be permanently removed."
+        onConfirm={() => { handleDelete(deleteId!); setDeleteId(null); }}
+        onCancel={() => setDeleteId(null)}
+      />
 
       {/* Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

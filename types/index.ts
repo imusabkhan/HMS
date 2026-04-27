@@ -269,3 +269,23 @@ export interface Prospect {
   created_at: string;
   updated_at: string;
 }
+
+
+export interface AuditLog {
+  id: string;
+  actor_id: string | null;
+  actor_email: string;
+  action: string;
+  entity: string;
+  entity_id: string | null;
+  meta: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface LoginLog {
+  id: string;
+  user_id: string | null;
+  email: string;
+  logged_in_at: string;
+  created_at: string;
+}

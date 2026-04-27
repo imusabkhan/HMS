@@ -1,6 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
 import { Plus, FileText, Search, Edit2, Trash2, CheckCircle2, Clock, AlertTriangle, Zap } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ export function BillsClient({ hostelId, initialBills }: Props) {
   const [editing, setEditing] = useState<Bill | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     let list = bills;
@@ -88,7 +90,6 @@ export function BillsClient({ hostelId, initialBills }: Props) {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this bill?")) return;
     const supabase = createClient();
     const { error } = await supabase.from("hms_bills").delete().eq("id", id);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -162,7 +163,7 @@ export function BillsClient({ hostelId, initialBills }: Props) {
                     <div className="flex items-center gap-1 shrink-0">
                       {bill.status !== "paid" && <Button variant="ghost" size="sm" className="h-8 text-xs gap-1 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 border border-emerald-500/20" onClick={() => markPaid(bill)}><CheckCircle2 className="w-3 h-3" /> Pay</Button>}
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditing(bill); setForm({ title: bill.title, category: bill.category, amount: bill.amount.toString(), due_date: bill.due_date, paid_date: bill.paid_date ?? "", status: bill.status, notes: bill.notes ?? "" }); setDialogOpen(true); }}><Edit2 className="w-3.5 h-3.5" /></Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(bill.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteId(bill.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
                     </div>
                   </div>
                 );
@@ -171,6 +172,14 @@ export function BillsClient({ hostelId, initialBills }: Props) {
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={!!deleteId}
+        title="Delete bill?"
+        description="This bill record will be permanently deleted."
+        onConfirm={() => { handleDelete(deleteId!); setDeleteId(null); }}
+        onCancel={() => setDeleteId(null)}
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">

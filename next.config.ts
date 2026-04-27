@@ -1,5 +1,14 @@
 import type { NextConfig } from "next";
 
+const securityHeaders = [
+  { key: "X-Content-Type-Options",    value: "nosniff" },
+  { key: "X-Frame-Options",           value: "DENY" },
+  { key: "X-XSS-Protection",          value: "1; mode=block" },
+  { key: "Referrer-Policy",           value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy",        value: "camera=(), microphone=(), geolocation=()" },
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+];
+
 const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
@@ -10,6 +19,9 @@ const nextConfig: NextConfig = {
   experimental: {
     // Tree-shake icon and chart imports — ships only what's used
     optimizePackageImports: ["lucide-react", "recharts", "@radix-ui/react-dialog", "@radix-ui/react-select", "@radix-ui/react-label"],
+  },
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders }];
   },
 };
 

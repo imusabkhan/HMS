@@ -4,6 +4,7 @@ import {
   Plus, ChefHat, Search, Edit2, Trash2, TrendingDown,
   CalendarDays, X, ShoppingBasket, Pencil, Check, ShoppingCart,
 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -143,6 +144,7 @@ export function KitchenClient({ hostelId, initialItems, defaultMonth }: Props) {
   const [groceryForm, setGroceryForm]     = useState(emptyGroceryForm);
   const [grocerySearch, setGrocerySearch] = useState("");
   const [savingGrocery, setSavingGrocery] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   // ── Shared edit dialog state ──────────────────────────
   const [editOpen, setEditOpen]   = useState(false);
@@ -314,7 +316,6 @@ export function KitchenClient({ hostelId, initialItems, defaultMonth }: Props) {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this entry?")) return;
     const supabase = createClient();
     const { error } = await supabase.from("hms_kitchen_expenses").delete().eq("id", id);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -468,7 +469,7 @@ export function KitchenClient({ hostelId, initialItems, defaultMonth }: Props) {
                           <span className="font-semibold text-sm shrink-0">{formatCurrency(item.amount)}</span>
                           <div className="flex gap-1 shrink-0">
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)}><Edit2 className="w-3 h-3" /></Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(item.id)}><Trash2 className="w-3 h-3" /></Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteId(item.id)}><Trash2 className="w-3 h-3" /></Button>
                           </div>
                         </div>
                       ))}
@@ -533,7 +534,7 @@ export function KitchenClient({ hostelId, initialItems, defaultMonth }: Props) {
                       <span className="font-bold text-sm text-blue-400 shrink-0">{formatCurrency(item.amount)}</span>
                       <div className="flex gap-1 shrink-0">
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openGroceryEdit(item)}><Edit2 className="w-3 h-3" /></Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(item.id)}><Trash2 className="w-3 h-3" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteId(item.id)}><Trash2 className="w-3 h-3" /></Button>
                       </div>
                     </div>
                   ))}
@@ -543,6 +544,14 @@ export function KitchenClient({ hostelId, initialItems, defaultMonth }: Props) {
           )}
         </TabsContent>
       </Tabs>
+
+      <ConfirmDialog
+        open={!!deleteId}
+        title="Delete entry?"
+        description="This kitchen entry will be permanently deleted."
+        onConfirm={() => { handleDelete(deleteId!); setDeleteId(null); }}
+        onCancel={() => setDeleteId(null)}
+      />
 
       {/* ── Daily Multi-add Dialog ────────────────────── */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>

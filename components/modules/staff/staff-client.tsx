@@ -4,6 +4,7 @@ import {
   Plus, Search, Edit2, Trash2, UserCog, Wallet,
   CheckCircle2, Clock, Users, TrendingDown,
 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -98,6 +99,7 @@ export function StaffClient({ hostelId, employees: initialEmployees, salaryPayme
   const [editing, setEditing] = useState<Employee | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   // ── Salary state ──────────────────────────────────────────
   const [salaryPayments, setSalaryPayments] = useState(initialPayments);
@@ -160,7 +162,6 @@ export function StaffClient({ hostelId, employees: initialEmployees, salaryPayme
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this employee? Their salary records will also be removed.")) return;
     const supabase = createClient();
     const { error } = await supabase.from("hms_employees").delete().eq("id", id);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -320,7 +321,7 @@ export function StaffClient({ hostelId, employees: initialEmployees, salaryPayme
                       {/* Actions */}
                       <div className="flex gap-1 shrink-0">
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(emp)}><Edit2 className="w-3.5 h-3.5" /></Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(emp.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteId(emp.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
                       </div>
                     </div>
                   );
@@ -396,6 +397,14 @@ export function StaffClient({ hostelId, employees: initialEmployees, salaryPayme
           )}
         </TabsContent>
       </Tabs>
+
+      <ConfirmDialog
+        open={!!deleteId}
+        title="Delete employee?"
+        description="This employee and all their salary records will be permanently deleted."
+        onConfirm={() => { handleDelete(deleteId!); setDeleteId(null); }}
+        onCancel={() => setDeleteId(null)}
+      />
 
       {/* ── Add / Edit Employee Dialog ────────────────────── */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

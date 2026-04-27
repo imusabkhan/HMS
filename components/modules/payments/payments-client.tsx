@@ -112,17 +112,25 @@ export function PaymentsClient({ hostelId, payments: initialPayments, tenants, r
   }, [hostelId, tenants]);
 
   // Auto-sync on mount
-  useEffect(() => { syncMonth(initialMonth); }, []);
+  useEffect(() => {
+    syncMonth(initialMonth).catch((err) => {
+      toast({ title: "Failed to load payments", description: err?.message, variant: "destructive" });
+    });
+  }, []);
 
   async function loadHistory() {
     if (!hostelId || historyLoaded) return;
     const supabase = createClient();
-    const { data } = await supabase.from("hms_payments")
+    const { data, error } = await supabase.from("hms_payments")
       .select("*, tenant:hms_tenants(full_name, room_id)")
       .eq("hostel_id", hostelId)
       .order("for_month", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(200);
+    if (error) {
+      toast({ title: "Failed to load history", description: error.message, variant: "destructive" });
+      return;
+    }
     setAllHistory((data ?? []) as Payment[]);
     setHistoryLoaded(true);
   }

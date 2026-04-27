@@ -1,6 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
 import { Plus, Receipt, Search, Edit2, Trash2, TrendingDown, Filter } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -75,6 +76,7 @@ export function ExpensesClient({ hostelId, initialExpenses, defaultMonth }: Prop
   const [editing, setEditing] = useState<Expense | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     let list = expenses;
@@ -130,7 +132,6 @@ export function ExpensesClient({ hostelId, initialExpenses, defaultMonth }: Prop
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete?")) return;
     const supabase = createClient();
     const { error } = await supabase.from("hms_expenses").delete().eq("id", id);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -201,7 +202,7 @@ export function ExpensesClient({ hostelId, initialExpenses, defaultMonth }: Prop
                       <td className="px-4 py-3 text-right font-semibold text-sm">{formatCurrency(exp.amount)}</td>
                       <td className="px-4 py-3 text-right"><div className="flex items-center justify-end gap-1">
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditing(exp); setForm({ title: exp.title, amount: exp.amount.toString(), category: exp.category, date: exp.date, notes: exp.notes ?? "" }); setDialogOpen(true); }}><Edit2 className="w-3.5 h-3.5" /></Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(exp.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteId(exp.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
                       </div></td>
                     </tr>
                   ))}
@@ -212,6 +213,13 @@ export function ExpensesClient({ hostelId, initialExpenses, defaultMonth }: Prop
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={!!deleteId}
+        description="This expense entry will be permanently deleted."
+        onConfirm={() => { handleDelete(deleteId!); setDeleteId(null); }}
+        onCancel={() => setDeleteId(null)}
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">

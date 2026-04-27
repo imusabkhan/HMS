@@ -2,6 +2,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Plus, UtensilsCrossed, Edit2, Trash2, ChevronLeft, ChevronRight,
          CalendarDays, ChevronDown, ChevronUp, X } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -73,6 +74,7 @@ export function FoodClient({ hostelId, initialItems, initialDate }: Props) {
   const [editing, setEditing] = useState<FoodItem | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(initialDate);
 
   // ── Monthly menu state ────────────────────────────────────
@@ -166,7 +168,6 @@ export function FoodClient({ hostelId, initialItems, initialDate }: Props) {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this item?")) return;
     const supabase = createClient();
     const { error } = await supabase.from("hms_food_items").delete().eq("id", id);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -337,7 +338,7 @@ export function FoodClient({ hostelId, initialItems, initialDate }: Props) {
                           </div>
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openFullEdit(item)}><Edit2 className="w-3 h-3" /></Button>
-                            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => handleDelete(item.id)}><Trash2 className="w-3 h-3" /></Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => setDeleteId(item.id)}><Trash2 className="w-3 h-3" /></Button>
                           </div>
                         </div>
                       ))
@@ -546,6 +547,14 @@ export function FoodClient({ hostelId, initialItems, initialDate }: Props) {
           )}
         </TabsContent>
       </Tabs>
+
+      <ConfirmDialog
+        open={!!deleteId}
+        title="Delete food item?"
+        description="This item will be permanently removed from the daily record."
+        onConfirm={() => { handleDelete(deleteId!); setDeleteId(null); }}
+        onCancel={() => setDeleteId(null)}
+      />
 
       {/* Full edit/add dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

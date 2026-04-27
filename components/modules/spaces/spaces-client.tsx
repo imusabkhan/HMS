@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Plus, BedDouble, Users, Wrench, Search, Edit2, Trash2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ export function SpacesClient({ hostelId, initialRooms }: Props) {
   const [editing, setEditing] = useState<Room | null>(null);
   const [form, setForm] = useState(emptyRoom);
   const [saving, setSaving] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     const q = search.toLowerCase();
@@ -58,7 +60,6 @@ export function SpacesClient({ hostelId, initialRooms }: Props) {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this room?")) return;
     const supabase = createClient();
     const { error } = await supabase.from("hms_rooms").delete().eq("id", id);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -106,13 +107,21 @@ export function SpacesClient({ hostelId, initialRooms }: Props) {
                 ))}
                 <div className="flex gap-2 pt-2">
                   <Button variant="outline" size="sm" className="flex-1 gap-1" onClick={() => openEdit(room)}><Edit2 className="w-3 h-3" /> Edit</Button>
-                  <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDelete(room.id)}><Trash2 className="w-3 h-3" /></Button>
+                  <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteId(room.id)}><Trash2 className="w-3 h-3" /></Button>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteId}
+        title="Delete room?"
+        description="This room and its data will be permanently deleted."
+        onConfirm={() => { handleDelete(deleteId!); setDeleteId(null); }}
+        onCancel={() => setDeleteId(null)}
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">

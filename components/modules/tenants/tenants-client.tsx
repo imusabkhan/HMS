@@ -4,6 +4,7 @@ import {
   Plus, Users, BedDouble, Search, Edit2, Trash2,
   LogOut, Clock, UserCheck, Phone, Mail, CreditCard,
 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +50,7 @@ export function TenantsClient({ hostelId, active: initialActive, waiting: initia
   const [checkoutDate, setCheckoutDate] = useState(formatDateInput(new Date()));
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [deleteTenant, setDeleteTenant] = useState<Tenant | null>(null);
 
   // Rooms with remaining capacity
   const availableRooms = useMemo(
@@ -207,7 +209,6 @@ export function TenantsClient({ hostelId, active: initialActive, waiting: initia
   }
 
   async function handleDelete(t: Tenant) {
-    if (!confirm(`Delete ${t.full_name}? This cannot be undone.`)) return;
     const supabase = createClient();
     const { error } = await supabase.from("hms_tenants").delete().eq("id", t.id);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
@@ -271,7 +272,7 @@ export function TenantsClient({ hostelId, active: initialActive, waiting: initia
             </Button>
           )}
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(t)}><Edit2 className="w-3.5 h-3.5" /></Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(t)}><Trash2 className="w-3.5 h-3.5" /></Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTenant(t)}><Trash2 className="w-3.5 h-3.5" /></Button>
         </div>
       </div>
     );
@@ -370,6 +371,14 @@ export function TenantsClient({ hostelId, active: initialActive, waiting: initia
           </div>
         </TabsContent>
       </Tabs>
+
+      <ConfirmDialog
+        open={!!deleteTenant}
+        title={`Delete ${deleteTenant?.full_name ?? "tenant"}?`}
+        description="This tenant and all associated payment records will be permanently deleted."
+        onConfirm={() => { handleDelete(deleteTenant!); setDeleteTenant(null); }}
+        onCancel={() => setDeleteTenant(null)}
+      />
 
       {/* Add / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

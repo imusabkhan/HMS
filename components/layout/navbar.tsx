@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Menu, LogOut, ChevronDown, Home, Building2, Check, Shield, Users } from "lucide-react";
+import { Menu, LogOut, ChevronDown, Home, Building2, Check, Shield, Users, ClipboardList } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import type { Profile, Hostel } from "@/types";
@@ -11,6 +11,7 @@ const ADMIN_LINKS = [
   { href: "/admin/users",     label: "User Management",  icon: Users },
   { href: "/admin/hostels",   label: "Hostels",          icon: Building2 },
   { href: "/admin/prospects", label: "Hostel Pipeline",  icon: Home },
+  { href: "/admin/audit",     label: "Audit Log",        icon: ClipboardList },
 ];
 
 interface NavbarProps {

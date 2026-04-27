@@ -1,6 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
 import { Plus, MessageSquareWarning, CheckCircle2, Clock, Wrench, AlertTriangle, Edit2, Trash2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,6 +54,7 @@ export function ComplaintsClient({ hostelId, complaints: initial, tenants, rooms
   const [resolutionNotes, setResolutionNotes] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   async function reload() {
     if (!hostelId) return;
@@ -104,10 +106,9 @@ export function ComplaintsClient({ hostelId, complaints: initial, tenants, rooms
     setSaving(false);
   }
 
-  async function handleDelete(c: Complaint) {
-    if (!confirm("Delete this complaint?")) return;
+  async function handleDelete(id: string) {
     const supabase = createClient();
-    const { error } = await supabase.from("hms_complaints").delete().eq("id", c.id);
+    const { error } = await supabase.from("hms_complaints").delete().eq("id", id);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Deleted" });
     await reload();
@@ -165,7 +166,7 @@ export function ComplaintsClient({ hostelId, complaints: initial, tenants, rooms
             </Button>
           )}
           <div className="ml-auto flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(c)}>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteId(c.id)}>
               <Trash2 className="w-3 h-3" />
             </Button>
           </div>
@@ -221,6 +222,14 @@ export function ComplaintsClient({ hostelId, complaints: initial, tenants, rooms
           )}
         </TabsContent>
       </Tabs>
+
+      <ConfirmDialog
+        open={!!deleteId}
+        title="Delete complaint?"
+        description="This complaint record will be permanently deleted."
+        onConfirm={() => { handleDelete(deleteId!); setDeleteId(null); }}
+        onCancel={() => setDeleteId(null)}
+      />
 
       {/* Add Complaint Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

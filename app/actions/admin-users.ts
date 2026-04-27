@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { writeAuditLog } from "@/lib/audit";
 import type { AdminUser } from "@/types";
 
 // ── Guard ────────────────────────────────────────────────────────────────────
@@ -80,7 +81,7 @@ export async function createUserWithPassword(data: {
   full_name: string;
 }): Promise<{ userId?: string; error?: string }> {
   try {
-    await requireAdmin();
+    const caller = await requireAdmin();
 
     if (!data.email || !data.password || data.password.length < 8) {
       throw new Error("Email and password (min 8 chars) are required");
@@ -95,6 +96,19 @@ export async function createUserWithPassword(data: {
     });
 
     if (error) throw error;
+
+    // Upsert profile — auth trigger may not fire for admin-created users
+    await admin.from("hms_profiles").upsert(
+      { id: created.user.id, full_name: data.full_name || null },
+      { onConflict: "id", ignoreDuplicates: true }
+    );
+
+    await writeAuditLog({
+      actor_id: caller.id, actor_email: caller.email ?? "",
+      action: "user.create", entity: "user", entity_id: created.user.id,
+      meta: { email: data.email, full_name: data.full_name },
+    });
+
     return { userId: created.user.id };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to create user" };
@@ -108,16 +122,31 @@ export async function inviteUser(data: {
   full_name: string;
 }): Promise<{ error?: string }> {
   try {
-    await requireAdmin();
+    const caller = await requireAdmin();
 
     if (!data.email) throw new Error("Email is required");
 
     const admin = createAdminClient();
-    const { error } = await admin.auth.admin.inviteUserByEmail(data.email, {
+    const { data: invited, error } = await admin.auth.admin.inviteUserByEmail(data.email, {
       data: { full_name: data.full_name },
     });
 
     if (error) throw error;
+
+    // Upsert profile so the user appears in the admin panel immediately
+    if (invited.user) {
+      await admin.from("hms_profiles").upsert(
+        { id: invited.user.id, full_name: data.full_name || null },
+        { onConflict: "id", ignoreDuplicates: true }
+      );
+    }
+
+    await writeAuditLog({
+      actor_id: caller.id, actor_email: caller.email ?? "",
+      action: "user.invite", entity: "user", entity_id: invited.user?.id,
+      meta: { email: data.email, full_name: data.full_name },
+    });
+
     return {};
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to send invite" };
@@ -169,6 +198,17 @@ export async function updateAdminUser(data: {
       if (error) throw error;
     }
 
+    const changes: Record<string, unknown> = {};
+    if (data.email) changes.email = data.email;
+    if (data.full_name !== undefined) changes.full_name = data.full_name;
+    if (data.is_admin !== undefined) changes.is_admin = data.is_admin;
+    if (data.password) changes.password = "***";
+    await writeAuditLog({
+      actor_id: caller.id, actor_email: caller.email ?? "",
+      action: "user.update", entity: "user", entity_id: data.userId,
+      meta: { changes },
+    });
+
     return {};
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to update user" };
@@ -186,6 +226,11 @@ export async function deleteAdminUser(userId: string): Promise<{ error?: string 
     const admin = createAdminClient();
     const { error } = await admin.auth.admin.deleteUser(userId);
     if (error) throw error;
+
+    await writeAuditLog({
+      actor_id: caller.id, actor_email: caller.email ?? "",
+      action: "user.delete", entity: "user", entity_id: userId,
+    });
 
     return {};
   } catch (err) {
